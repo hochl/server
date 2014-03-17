@@ -53,7 +53,6 @@ extern "C" {
 #define HASH1 JENKINS_HASH1
 #define HASH2 JENKINS_HASH2
 
-#define SWAP_VARS(T, a, b) { T x = a; a = b; b = x; }
 #ifdef __cplusplus
 }
 #endif

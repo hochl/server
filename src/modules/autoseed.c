@@ -922,6 +922,8 @@ static void oceans_around(region * r, region * rn[])
   }
 }
 
+#define SWAP_INTS(a, b) { a^=b; b^=a; a^=b; }
+
 static void smooth_island(region_list * island)
 {
   region *rn[MAXDIRECTIONS];
@@ -949,8 +951,8 @@ static void smooth_island(region_list * island)
             r = rlist->data;
             runhash(r);
             runhash(rn[n]);
-            SWAP_VARS(int, r->x, rn[n]->x);
-            SWAP_VARS(int, r->y, rn[n]->y);
+            SWAP_INTS(r->x, rn[n]->x);
+            SWAP_INTS(r->y, rn[n]->y);
             rhash(r);
             rhash(rn[n]);
             rlist->data = r;

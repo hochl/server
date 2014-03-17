@@ -22,7 +22,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <kernel/config.h>
 #include "laws.h"
 
-#include <modules/gmcmd.h>
 #include <modules/wormhole.h>
 
 /* gamecode includes */
@@ -497,7 +496,7 @@ static void peasants(region * r)
   /* Bis zu 1000 Bauern können Zwillinge bekommen oder 1000 Bauern
    * wollen nicht! */
 
-  if (peasants > 0) {
+  if (peasants > 0 && get_param_int(global.parameters, "rules.peasants.growth", 1)) {
     int glueck = 0;
     double fraction = peasants * 0.0001F * PEASANTGROWTH;
     int births = (int)fraction;
@@ -939,9 +938,7 @@ void demographics(void)
          * und gewandert sind */
 
         calculate_emigration(r);
-        if (get_param_int(global.parameters, "rules.peasants.growth", 1)) {
-            peasants(r);
-        }
+        peasants(r);
         if (r->age > 20) {
           plagues(r, false);
         }
@@ -4522,10 +4519,6 @@ void init_processor(void)
   p += 10;                      /* all claims must be done before we can USE */
   add_proc_region(p, &enter_1, "Betreten (1. Versuch)");
   add_proc_order(p, K_USE, &use_cmd, 0, "Benutzen");
-
-  if (!global.disabled[K_GM]) {
-    add_proc_global(p, &gmcommands, "GM Kommandos");
-  }
 
   p += 10;                      /* in case it has any effects on alliance victories */
   add_proc_order(p, K_GIVE, &give_control_cmd, 0, "GIB KOMMANDO");
