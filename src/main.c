@@ -16,6 +16,7 @@ ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 **/
 
+#include <autoconf.h>
 #include <platform.h>
 #include <util/log.h>
 
@@ -39,7 +40,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 static const char *logfile= "eressea.log";
 static const char *luafile = 0;
-static const char *entry_point = NULL;
 static const char *inifile = "eressea.ini";
 static int memdebug = 0;
 
@@ -51,8 +51,6 @@ static void parse_config(const char *filename)
     log_debug("reading from configuration file %s\n", filename);
 
     memdebug = iniparser_getint(d, "eressea:memcheck", memdebug);
-    entry_point = iniparser_getstring(d, "eressea:run", entry_point);
-    luafile = iniparser_getstring(d, "eressea:load", luafile);
 
     /* only one value in the [editor] section */
     force_color = iniparser_getint(d, "editor:color", force_color);
@@ -72,6 +70,7 @@ static int usage(const char *prog, const char *arg)
   }
   fprintf(stderr, "Usage: %s [options]\n"
     "-t <turn>        : read this datafile, not the most current one\n"
+    "-f <script.lua>  : execute a lua script\n"
     "-q               : be quite (same as -v 0)\n"
     "-v <level>       : verbosity level\n"
     "-C               : run in interactive mode\n"
@@ -98,7 +97,7 @@ static int parse_args(int argc, char **argv, int *exitcode)
 
   for (i = 1; i != argc; ++i) {
     if (argv[i][0] != '-') {
-      return usage(argv[0], argv[i]);
+      luafile = argv[i];
     } else if (argv[i][1] == '-') {     /* long format */
       if (strcmp(argv[i] + 2, "version") == 0) {
         printf("\n%s PBEM host\n"
@@ -116,14 +115,11 @@ static int parse_args(int argc, char **argv, int *exitcode)
     } else {
       const char *arg;
       switch (argv[i][1]) {
-      case 'C':
-        entry_point = NULL;
+      case 'f':
+        i = get_arg(argc, argv, 2, i, &luafile, 0);
         break;
       case 'l':
         i = get_arg(argc, argv, 2, i, &logfile, 0);
-        break;
-      case 'e':
-        i = get_arg(argc, argv, 2, i, &entry_point, 0);
         break;
       case 't':
         i = get_arg(argc, argv, 2, i, &arg, 0);
@@ -133,7 +129,6 @@ static int parse_args(int argc, char **argv, int *exitcode)
         verbosity = 0;
         break;
       case 'r':
-        entry_point = "run_turn";
         i = get_arg(argc, argv, 2, i, &arg, 0);
         turn = atoi(arg);
         break;
@@ -266,7 +261,7 @@ int main(int argc, char **argv)
   register_spells();
   bind_monsters(L);
 
-  err = eressea_run(L, luafile, entry_point);
+  err = eressea_run(L, luafile);
   if (err) {
     log_error("server execution failed with code %d\n", err);
     return err;

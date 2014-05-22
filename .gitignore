@@ -30,3 +30,4 @@ game-e3/reports/
 *.log
 *.log.*
 tags
+Thumbs.db

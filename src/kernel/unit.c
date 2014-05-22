@@ -749,7 +749,7 @@ void set_level(unit * u, skill_t sk, int value)
 static int leftship_age(struct attrib *a)
 {
   /* must be aged, so it doesn't affect report generation (cansee) */
-  unused(a);
+  unused_arg(a);
   return AT_AGE_REMOVE;         /* remove me */
 }
 
@@ -1070,43 +1070,51 @@ struct building *inside_building(const struct unit *u)
 
 void u_setfaction(unit * u, faction * f)
 {
-  int cnt = u->number;
+    int cnt = u->number;
+    if (u->faction == f)
+        return;
+    if (u->faction) {
+        if (count_unit(u)) {
+            --u->faction->no_units;
+        }
+        set_number(u, 0);
+        join_group(u, NULL);
+        free_orders(&u->orders);
+        set_order(&u->thisorder, NULL);
 
-  if (u->faction == f)
-    return;
-  if (u->faction) {
-    set_number(u, 0);
-    if (count_unit(u))
-      --u->faction->no_units;
-    join_group(u, NULL);
-    free_orders(&u->orders);
-    set_order(&u->thisorder, NULL);
+        if (u->nextF) {
+            u->nextF->prevF = u->prevF;
+        }
+        if (u->prevF) {
+            u->prevF->nextF = u->nextF;
+        } 
+        else {
+            u->faction->units = u->nextF;
+        }
+    }
 
-    if (u->nextF)
-      u->nextF->prevF = u->prevF;
-    if (u->prevF)
-      u->prevF->nextF = u->nextF;
-    else
-      u->faction->units = u->nextF;
-  }
+    if (f != NULL) {
+        if (f->units) {
+            f->units->prevF = u;
+        }
+        u->prevF = NULL;
+        u->nextF = f->units;
+        f->units = u;
+    }
+    else {
+        u->nextF = NULL;
+    }
 
-  if (f != NULL) {
-    if (f->units)
-      f->units->prevF = u;
-    u->prevF = NULL;
-    u->nextF = f->units;
-    f->units = u;
-  } else
-    u->nextF = NULL;
-
-  u->faction = f;
-  if (u->region)
-    update_interval(f, u->region);
-  if (cnt && f) {
-    set_number(u, cnt);
-    if (count_unit(u))
-      ++f->no_units;
-  }
+    u->faction = f;
+    if (u->region) {
+        update_interval(f, u->region);
+    }
+    if (cnt) {
+        set_number(u, cnt);
+    }
+    if (f && count_unit(u)) {
+        ++f->no_units;
+    }
 }
 
 /* vorsicht Sprüche können u->number == RS_FARVISION haben! */

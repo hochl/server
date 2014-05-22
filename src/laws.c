@@ -16,8 +16,6 @@ ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 **/
 
-#pragma region includes
-
 #include <platform.h>
 #include <kernel/config.h>
 #include "laws.h"
@@ -102,8 +100,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <limits.h>
 
 #include <tests.h>
-
-#pragma endregion
 
 /* chance that a peasant dies of starvation: */
 #define PEASANT_STARVATION_CHANCE 0.9F
@@ -4520,10 +4516,6 @@ void init_processor(void)
   p += 10;                      /* all claims must be done before we can USE */
   add_proc_region(p, &enter_1, "Betreten (1. Versuch)");
   add_proc_order(p, K_USE, &use_cmd, 0, "Benutzen");
-
-  if (!global.disabled[K_GM]) {
-    add_proc_global(p, &gmcommands, "GM Kommandos");
-  }
 
   p += 10;                      /* in case it has any effects on alliance victories */
   add_proc_order(p, K_GIVE, &give_control_cmd, 0, "GIB KOMMANDO");
