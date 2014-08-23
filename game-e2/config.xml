@@ -19,7 +19,6 @@
   <xi:include href="config:///core/prefixes.xml"/>
   <xi:include href="config:///core/ships.xml"/>
   <xi:include href="config:///core/common/buildings.xml"/>
-  <xi:include href="config:///core/equipment.xml"/>
   <xi:include href="config:///game/familiars.xml"/>
   <xi:include href="config:///core/terrains.xml"/>
   <xi:include href="config:///game/terrains.xml"/>
@@ -53,12 +52,6 @@
 
   <game name="Eressea">
     <!-- Game specific settings -->
-
-    <order name="BEZAHLEN" disable="yes"/>
-    <order name="FRIEDEN" disable="yes"/>
-    <order name="GM" disable="yes"/>
-    <order name="JIHAD" disable="yes"/>
-    <order name="KRIEG" disable="yes"/>
 
     <skill name="alchemy" enable="true"/>
     <skill name="crossbow" enable="true"/>

@@ -26,13 +26,12 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <kernel/item.h>
 #include <kernel/faction.h>
 #include <kernel/magic.h>
-#include <kernel/message.h>
+#include <kernel/messages.h>
 #include <kernel/move.h>
 #include <kernel/order.h>
 #include <kernel/race.h>
 #include <kernel/region.h>
 #include <kernel/ship.h>
-#include <kernel/skill.h>
 #include <kernel/terrain.h>
 #include <kernel/unit.h>
 
@@ -121,8 +120,7 @@ int spy_cmd(unit * u, struct order *ord)
   double spychance, observechance;
   region *r = u->region;
 
-  init_tokens(ord);
-  skip_token();
+  init_order(ord);
   target = getunit(r, u->faction);
 
   if (!target) {
@@ -214,8 +212,7 @@ int setstealth_cmd(unit * u, struct order *ord)
   int level, rule;
   const race *trace;
 
-  init_tokens(ord);
-  skip_token();
+  init_order(ord);
   s = getstrtoken();
 
   /* Tarne ohne Parameter: Setzt maximale Tarnung */
@@ -239,16 +236,16 @@ int setstealth_cmd(unit * u, struct order *ord)
   trace = findrace(s, u->faction->locale);
   if (trace) {
     /* demons can cloak as other player-races */
-    if (u_race(u) == new_race[RC_DAEMON]) {
+      if (u_race(u) == get_race(RC_DAEMON)) {
       race_t allowed[] = { RC_DWARF, RC_ELF, RC_ORC, RC_GOBLIN, RC_HUMAN,
         RC_TROLL, RC_DAEMON, RC_INSECT, RC_HALFLING, RC_CAT, RC_AQUARIAN,
         NORACE
       };
       int i;
       for (i = 0; allowed[i] != NORACE; ++i)
-        if (new_race[allowed[i]] == trace)
+          if (get_race(allowed[i]) == trace)
           break;
-      if (new_race[allowed[i]] == trace) {
+      if (get_race(allowed[i]) == trace) {
         u->irace = trace;
         if (u_race(u)->flags & RCF_SHAPESHIFTANY && get_racename(u->attribs))
           set_racename(&u->attribs, NULL);
@@ -257,10 +254,10 @@ int setstealth_cmd(unit * u, struct order *ord)
     }
 
     /* Singdrachen koennen sich nur als Drachen tarnen */
-    if (u_race(u) == new_race[RC_SONGDRAGON]
-      || u_race(u) == new_race[RC_BIRTHDAYDRAGON]) {
-      if (trace == new_race[RC_SONGDRAGON] || trace == new_race[RC_FIREDRAGON]
-        || trace == new_race[RC_DRAGON] || trace == new_race[RC_WYRM]) {
+      if (u_race(u) == get_race(RC_SONGDRAGON)
+          || u_race(u) == get_race(RC_BIRTHDAYDRAGON)) {
+          if (trace == get_race(RC_SONGDRAGON) || trace == get_race(RC_FIREDRAGON)
+              || trace == get_race(RC_DRAGON) || trace == get_race(RC_WYRM)) {
         u->irace = trace;
         if (u_race(u)->flags & RCF_SHAPESHIFTANY && get_racename(u->attribs))
           set_racename(&u->attribs, NULL);
@@ -298,8 +295,8 @@ int setstealth_cmd(unit * u, struct order *ord)
         }
       }
       if (rule&2) {
-        if (findkeyword(s, u->faction->locale) == K_NUMBER) {
-          const char *s2 = (const char *)getstrtoken();
+        if (get_keyword(s, u->faction->locale) == K_NUMBER) {
+          const char *s2 = getstrtoken();
           int nr = -1;
 
           if (s2) {
@@ -485,8 +482,7 @@ int sabotage_cmd(unit * u, struct order *ord)
   region *r = u->region;
   int skdiff;
 
-  init_tokens(ord);
-  skip_token();
+  init_order(ord);
   s = getstrtoken();
 
   i = findparam(s, u->faction->locale);

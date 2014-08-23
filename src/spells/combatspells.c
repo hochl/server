@@ -22,7 +22,7 @@
 #include <kernel/faction.h>
 #include <kernel/item.h>
 #include <kernel/magic.h>
-#include <kernel/message.h>
+#include <kernel/messages.h>
 #include <kernel/order.h>
 #include <kernel/race.h>
 #include <kernel/region.h>
@@ -31,7 +31,6 @@
 #include <kernel/spell.h>
 #include <kernel/spellid.h>
 #include <kernel/race.h>
-#include <kernel/skill.h>
 #include <kernel/terrain.h>
 
 /* util includes */
@@ -327,7 +326,7 @@ int sp_combatrosthauch(struct castorder * co)
           requirement *mat = wp->type->itype->construction->materials;
           bool iron = false;
           while (mat && mat->number > 0) {
-            if (mat->rtype == oldresourcetype[R_IRON]) {
+            if (mat->rtype == get_resourcetype(R_IRON)) {
               iron = true;
               break;
             }
@@ -596,7 +595,7 @@ int sp_mindblast(struct castorder * co)
       if (!is_magic_resistant(mage, du, 0)) {
         skill_t sk = random_skill(du, false);
         if (sk != NOSKILL) {
-          skill *sv = get_skill(du, sk);
+          skill *sv = unit_skill(du, sk);
           int n = 1 + rng_int() % 3;
 
           reduce_skill(du, sv, n);
@@ -833,7 +832,7 @@ int sp_wolfhowl(struct castorder * co)
   attrib *a;
   message *msg;
   int force = (int)(get_force(power, 3) / 2);
-  const race * rc = new_race[RC_WOLF];
+  const race * rc = get_race(RC_WOLF);
   if (force>0) {
     unit *u =
       create_unit(r, mage->faction, force, rc, 0, NULL, mage);
@@ -877,7 +876,7 @@ int sp_shadowknights(struct castorder * co)
   message *msg;
 
   u =
-    create_unit(r, mage->faction, force, new_race[RC_SHADOWKNIGHT], 0, NULL,
+      create_unit(r, mage->faction, force, get_race(RC_SHADOWKNIGHT), 0, NULL,
     mage);
   setstatus(u, ST_FIGHT);
 
@@ -1528,6 +1527,10 @@ static int count_healable(battle * b, fighter * df)
   }
   return healable;
 }
+static bool has_ao_healing(const unit *u) {
+    item *const* iter = i_findc(&u->items, it_find("ao_healing"));
+    return (*iter && (*iter)->number>0);
+}
 
 /* wiederbeleben */
 int sp_reanimate(struct castorder * co)
@@ -1540,7 +1543,7 @@ int sp_reanimate(struct castorder * co)
   int healable, j = 0;
   double c = 0.50 + 0.02 * power;
   double k = EFFECT_HEALING_SPELL * power;
-  bool use_item = get_item(mage, I_AMULET_OF_HEALING) > 0;
+  bool use_item = has_ao_healing(mage);
   message *msg;
 
   if (use_item) {
@@ -1553,7 +1556,7 @@ int sp_reanimate(struct castorder * co)
   while (healable--) {
     fighter *tf = select_corpse(b, fi);
     if (tf != NULL && tf->side->casualties > 0
-      && u_race(tf->unit) != new_race[RC_DAEMON]
+        && u_race(tf->unit) != get_race(RC_DAEMON)
       && (chance(c))) {
       assert(tf->alive < tf->unit->number);
       /* t.fighter->person[].hp beginnt mit t.index = 0 zu zählen,
@@ -1579,7 +1582,7 @@ int sp_reanimate(struct castorder * co)
   if (use_item) {
     msg =
       msg_message("reanimate_effect_1", "mage amount item", mage, j,
-      oldresourcetype[R_AMULET_OF_HEALING]);
+      get_resourcetype(R_AMULET_OF_HEALING));
   } else {
     msg = msg_message("reanimate_effect_0", "mage amount", mage, j);
   }
@@ -1659,7 +1662,7 @@ int sp_healing(struct castorder * co)
   int healhp = (int)power * 200;
   quicklist *fgs;
   message *msg;
-  bool use_item = get_item(mage, I_AMULET_OF_HEALING) > 0;
+  bool use_item = has_ao_healing(mage);
 
   /* bis zu 11 Personen pro Stufe (einen HP müssen sie ja noch
    * haben, sonst wären sie tot) können geheilt werden */
@@ -1683,7 +1686,7 @@ int sp_healing(struct castorder * co)
   if (use_item) {
     msg =
       msg_message("healing_effect_1", "mage amount item", mage, j,
-      oldresourcetype[R_AMULET_OF_HEALING]);
+      get_resourcetype(R_AMULET_OF_HEALING));
   } else {
     msg = msg_message("healing_effect_0", "mage amount", mage, j);
   }
@@ -1736,7 +1739,7 @@ int sp_undeadhero(struct castorder * co)
 
       if (j > 0) {
         unit *u =
-          create_unit(r, mage->faction, 0, new_race[RC_UNDEAD], 0, du->name,
+            create_unit(r, mage->faction, 0, get_race(RC_UNDEAD), 0, du->name,
           du);
 
         /* new units gets some stats from old unit */

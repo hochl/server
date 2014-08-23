@@ -1,4 +1,12 @@
-# Microsoft Visual Studio build artifacts
+eressea.ini
+Debug
+Release
+
+# SlickEdit
+*.vtg
+*.vpwhistu
+
+# Microsoft Visual Studio build artefacts
 src/Debug/
 src/Release/
 src/*.vcproj.*.user

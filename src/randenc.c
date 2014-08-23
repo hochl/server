@@ -32,7 +32,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <kernel/faction.h>
 #include <kernel/item.h>
 #include <kernel/magic.h>
-#include <kernel/message.h>
+#include <kernel/messages.h>
 #include <kernel/move.h>
 #include <kernel/names.h>
 #include <kernel/order.h>
@@ -41,7 +41,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <kernel/race.h>
 #include <kernel/region.h>
 #include <kernel/ship.h>
-#include <kernel/skill.h>
 #include <kernel/terrain.h>
 #include <kernel/terrainid.h>
 #include <kernel/unit.h>
@@ -56,8 +55,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <util/language.h>
 #include <util/lists.h>
 #include <util/log.h>
-#include <util/message.h>
 #include <util/rand.h>
+#include <util/message.h>
 #include <util/rng.h>
 
 /* libc includes */
@@ -128,8 +127,8 @@ static void dissolve_units(void)
             }
             break;
           default:
-            if (u_race(u) == new_race[RC_STONEGOLEM]
-              || u_race(u) == new_race[RC_IRONGOLEM]) {
+              if (u_race(u) == get_race(RC_STONEGOLEM)
+                  || u_race(u) == get_race(RC_IRONGOLEM)) {
               msg =
                 msg_message("dissolve_units_4", "unit region number race", u, r,
                 n, u_race(u));
@@ -241,8 +240,10 @@ void find_manual(region * r, unit * u)
   slprintf(zBook, sizeof(zLocation), "manual_title_%s", skillnames[skill]);
 
   msg = msg_message("find_manual", "unit location book", u, zLocation, zBook);
-  r_addmessage(r, u->faction, msg);
-  msg_release(msg);
+  if (msg) {
+      r_addmessage(r, u->faction, msg); 
+      msg_release(msg);
+  }
 
   if (improve_all(u->faction, skill, 3) == 3) {
     int i;
@@ -392,7 +393,7 @@ void encounters(void)
   region *r;
 
   for (r = regions; r; r = r->next) {
-    if (!fval(r->terrain, SEA_REGION) && fval(r, RF_ENCOUNTER)) {
+    if (fval(r->terrain, LAND_REGION) && fval(r, RF_ENCOUNTER)) {
       int c = 0;
       unit *u;
       for (u = r->units; u; u = u->next) {
@@ -445,7 +446,7 @@ static unit *random_unit(const region * r)
   unit *u;
 
   for (u = r->units; u; u = u->next) {
-    if (u_race(u) != new_race[RC_SPELL]) {
+      if (u_race(u) != get_race(RC_SPELL)) {
       c += u->number;
     }
   }
@@ -458,7 +459,7 @@ static unit *random_unit(const region * r)
   u = r->units;
 
   while (u && c < n) {
-    if (u_race(u) != new_race[RC_SPELL]) {
+      if (u_race(u) != get_race(RC_SPELL)) {
       c += u->number;
     }
     u = u->next;
@@ -477,7 +478,7 @@ void chaos(region * r)
           if (u && playerrace(u_race(u))) {
             ADDMSG(&u->faction->msgs, msg_message("chaos_disease", "unit", u));
             u_setfaction(u, get_monsters());
-            u_setrace(u, new_race[RC_GHOUL]);
+            u_setrace(u, get_race(RC_GHOUL));
           }
         }
         break;
@@ -490,19 +491,19 @@ void chaos(region * r)
               mfac = 100;
               u =
                 createunit(r, get_monsters(), rng_int() % 8 + 1,
-                new_race[RC_FIREDRAGON]);
+                get_race(RC_FIREDRAGON));
               break;
             case 1:
               mfac = 500;
               u =
                 createunit(r, get_monsters(), rng_int() % 4 + 1,
-                new_race[RC_DRAGON]);
+                get_race(RC_DRAGON));
               break;
             default:
               mfac = 1000;
               u =
                 createunit(r, get_monsters(), rng_int() % 2 + 1,
-                new_race[RC_WYRM]);
+                get_race(RC_WYRM));
               break;
           }
           if (mfac)
@@ -536,7 +537,7 @@ void chaos(region * r)
 
               for (up = &r->units; *up;) {
                 unit *u = *up;
-                if (u_race(u) != new_race[RC_SPELL] && u->ship == 0 && !canfly(u)) {
+                if (u_race(u) != get_race(RC_SPELL) && u->ship == 0 && !canfly(u)) {
                   ADDMSG(&u->faction->msgs, msg_message("tidalwave_kill",
                       "region unit", r, u));
                   remove_unit(up, u);
@@ -604,7 +605,7 @@ damage_unit(unit * u, const char *dam, bool physical, bool magic)
   double magres = magic_resistance(u);
 
   assert(u->number);
-  if (fval(u_race(u), RCF_ILLUSIONARY) || u_race(u) == new_race[RC_SPELL]) {
+  if (fval(u_race(u), RCF_ILLUSIONARY) || u_race(u) == get_race(RC_SPELL)) {
     return 0;
   }
 
@@ -675,7 +676,7 @@ void drown(region * r)
     while (*up) {
       unit *u = *up;
       int amphibian_level = 0;
-      if (u->ship || u_race(u) == new_race[RC_SPELL] || u->number == 0) {
+      if (u->ship || u_race(u) == get_race(RC_SPELL) || u->number == 0) {
         up = &u->next;
         continue;
       }
@@ -1078,8 +1079,12 @@ static void orc_growth(void)
         int increase = 0;
         int num = get_cursedmen(u, c);
         double prob = curse_geteffect(c);
+        const item_type * it_chastity = it_find("ao_chastity");
 
-        for (n = (num - get_item(u, I_CHASTITY_BELT)); n > 0; n--) {
+        if (it_chastity) {
+            num -= i_get(u->items, it_chastity); 
+        }
+        for (n = num; n > 0; n--) {
           if (chance(prob)) {
             ++increase;
           }
@@ -1105,7 +1110,7 @@ static void demon_skillchanges(void)
   for (r = regions; r; r = r->next) {
     unit *u;
     for (u = r->units; u; u = u->next) {
-      if (u_race(u) == new_race[RC_DAEMON]) {
+        if (u_race(u) == get_race(RC_DAEMON)) {
         skill *sv = u->skills;
         int upchance = 15;
         int downchance = 10;
@@ -1168,41 +1173,41 @@ static void icebergs(void)
 #ifdef HERBS_ROT
 static void rotting_herbs(void)
 {
-  static int rule_rot = -1;
-  region *r;
+    static int rule_rot = -1;
+    region *r;
 
-  if (rule_rot < 0) {
-    rule_rot =
-      get_param_int(global.parameters, "rules.economy.herbrot", HERBROTCHANCE);
-  }
-  if (rule_rot == 0)
-    return;
-
-  for (r = regions; r; r = r->next) {
-    unit *u;
-    for (u = r->units; u; u = u->next) {
-      item **itmp = &u->items;
-      item *hbag = *i_find(itmp, olditemtype[I_SACK_OF_CONSERVATION]);
-      int rot_chance = rule_rot;
-
-      if (hbag)
-        rot_chance = (rot_chance * 2) / 5;
-      while (*itmp) {
-        item *itm = *itmp;
-        int n = itm->number;
-        double k = n * rot_chance / 100.0;
-        if (fval(itm->type, ITF_HERB)) {
-          double nv = normalvariate(k, k / 4);
-          int inv = (int)nv;
-          int delta = _min(n, inv);
-          if (i_change(itmp, itm->type, -delta) == NULL) {
-            continue;
-          }
-        }
-        itmp = &itm->next;
-      }
+    if (rule_rot < 0) {
+        rule_rot =
+            get_param_int(global.parameters, "rules.economy.herbrot", HERBROTCHANCE);
     }
-  }
+    if (rule_rot == 0) return;
+
+    for (r = regions; r; r = r->next) {
+        unit *u;
+        for (u = r->units; u; u = u->next) {
+            const struct item_type *it_bag = it_find("magicherbbag");
+            item **itmp = &u->items;
+            int rot_chance = rule_rot;
+
+            if (it_bag && *i_find(itmp, it_bag)) {
+                rot_chance = (rot_chance * 2) / 5;
+            }
+            while (*itmp) {
+                item *itm = *itmp;
+                int n = itm->number;
+                double k = n * rot_chance / 100.0;
+                if (fval(itm->type, ITF_HERB)) {
+                    double nv = normalvariate(k, k / 4);
+                    int inv = (int)nv;
+                    int delta = _min(n, inv);
+                    if (!i_change(itmp, itm->type, -delta)) {
+                        continue;
+                    }
+                }
+                itmp = &itm->next;
+            }
+        }
+    }
 }
 #endif
 

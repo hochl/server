@@ -20,6 +20,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define H_KRNL_ITEM
 
 #include <util/variant.h>
+#include "skill.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -64,7 +65,6 @@ extern "C" {
   typedef struct resource_type {
     /* --- constants --- */
     char *_name[2];             /* wie es heißt */
-    char *_appearance[2];       /* wie es für andere aussieht */
     unsigned int flags;
     /* --- functions --- */
     rtype_uchange uchange;
@@ -112,11 +112,11 @@ extern "C" {
 /* bitfield values for item_type::flags */
 #define ITF_NONE             0x0000
 #define ITF_HERB             0x0001     /* this item is a herb */
-#define ITF_CURSED           0x0010     /* cursed object, cannot be given away */
-#define ITF_NOTLOST          0x0020     /* special object (quests), cannot be lost through death etc. */
-#define ITF_BIG              0x0040     /* big item, e.g. does not fit in a bag of holding */
-#define ITF_ANIMAL           0x0080     /* an animal */
-#define ITF_VEHICLE          0x0100     /* a vehicle, drawn by two animals */
+#define ITF_CURSED           0x0002     /* cursed object, cannot be given away */
+#define ITF_NOTLOST          0x0004     /* special object (quests), cannot be lost through death etc. */
+#define ITF_BIG              0x0008     /* big item, e.g. does not fit in a bag of holding */
+#define ITF_ANIMAL           0x0010     /* an animal */
+#define ITF_VEHICLE          0x0020     /* a vehicle, drawn by two animals */
 
 /* error codes for item_type::use */
 #define ECUSTOM   -1
@@ -131,6 +131,7 @@ extern "C" {
     int weight;
     int capacity;
     struct construction *construction;
+    char *_appearance[2];       /* wie es für andere aussieht */
     /* --- functions --- */
      bool(*canuse) (const struct unit * user,
       const struct item_type * itype);
@@ -224,12 +225,12 @@ extern "C" {
       int *deaths);
   } weapon_type;
 
-  extern void rt_register(resource_type * it);
-  extern resource_type *rt_find(const char *name);
-  extern item_type *it_find(const char *name);
+  resource_type *rt_find(const char *name);
+  item_type *it_find(const char *name);
 
-  extern void it_register(item_type * it);
-  extern void wt_register(weapon_type * wt);
+  void it_set_appearance(item_type *itype, const char *appearance);
+  void it_register(item_type * it);
+  void wt_register(weapon_type * wt);
 
   extern const item_type *resource2item(const resource_type * rtype);
   extern const resource_type *item2resource(const item_type * i);
@@ -252,8 +253,9 @@ extern "C" {
   extern int i_get(const item * i, const item_type * it);
 
 /* creation */
-  extern resource_type *new_resourcetype(const char **names,
-    const char **appearances, int flags);
+    resource_type *rt_get_or_create(const char *name);
+//    resource_type *new_resourcetype(const char **names, const char **appearances, int flags);
+    item_type *it_get_or_create(resource_type *rtype);
   extern item_type *new_itemtype(resource_type * rtype, int iflags, int weight,
     int capacity);
   extern luxury_type *new_luxurytype(item_type * itype, int price);
@@ -264,47 +266,12 @@ extern "C" {
     double magres, int prot, unsigned int flags);
   extern potion_type *new_potiontype(item_type * itype, int level);
 
-/* for lack of another file: */
-
-/* sonstige resourcen */
-  extern resource_type *r_silver;
-  extern resource_type *r_aura;
-  extern resource_type *r_permaura;
-  extern resource_type *r_unit;
-
-  enum {
-    I_IRON,                     /* 0 */
-    I_STONE,
-    I_HORSE,
-    /* alte Artefakte */
-    I_AMULET_OF_HEALING,
-    I_AMULET_OF_TRUE_SEEING,
-    I_RING_OF_INVISIBILITY,
-    I_RING_OF_POWER,
-    I_CHASTITY_BELT,            /* bleibt */
-    I_LAEN,
-    I_FEENSTIEFEL,
-    I_BIRTHDAYAMULET,
-    I_PEGASUS,
-    I_ELVENHORSE,
-    I_DOLPHIN,
-    I_RING_OF_NIMBLEFINGER,
-    I_TROLLBELT,
-    I_PRESSCARD,
-    I_AURAKULUM,
-    I_SPHERE_OF_INVISIBILITY,
-    I_BAG_OF_HOLDING,
-    I_SACK_OF_CONSERVATION,
-    I_TACTICCRYSTAL,
-    MAX_ITEMS                   /* do not use outside item.c ! */
-  };
-
-  enum {
+  typedef enum {
     /* ITEMS: */
     R_IRON,
     R_STONE,
     R_HORSE,
-     /**/ R_AMULET_OF_HEALING,
+    R_AMULET_OF_HEALING,
     R_AMULET_OF_TRUE_SEEING,
     R_RING_OF_INVISIBILITY,
     R_RING_OF_POWER,
@@ -314,31 +281,32 @@ extern "C" {
     R_BIRTHDAYAMULET,
     R_PEGASUS,
     R_UNICORN,
+    R_CHARGER,
     R_DOLPHIN,
     R_RING_OF_NIMBLEFINGER,
     R_TROLLBELT,
-    R_PRESSCARD,
     R_AURAKULUM,
     R_SPHERE_OF_INVISIBILITY,
     R_BAG_OF_HOLDING,
     R_SACK_OF_CONSERVATION,
     R_TACTICCRYSTAL,
-
+    R_WATER_OF_LIFE,
+    R_SEED,
+    R_MALLORNSEED,
     /* SONSTIGE */
     R_SILVER,
     R_AURA,                     /* Aura */
     R_PERMAURA,                 /* Permanente Aura */
+    R_LIFE,
+    R_UNIT,
+    R_PEASANT,
 
     MAX_RESOURCES,              /* do not use outside item.c ! */
     NORESOURCE = -1
-  };
+  } resource_t;
 
   extern const struct potion_type *oldpotiontype[];
-  extern const struct item_type *olditemtype[];
-  extern const struct resource_type *oldresourcetype[];
-
-  int get_item(const struct unit *, item_t);
-  int set_item(struct unit *, item_t, int);
+  const struct resource_type *get_resourcetype(resource_t rt);
 
   int get_money(const struct unit *);
   int set_money(struct unit *, int);
@@ -356,8 +324,6 @@ extern "C" {
       const struct item_type *, int, struct order *), const char *name);
   extern void register_item_useonother(int (*foo) (struct unit *, int,
       const struct item_type *, int, struct order *), const char *name);
-
-  extern struct item_type *i_silver;
 
 #ifndef DISABLE_TESTS
   void test_clear_resources(void);

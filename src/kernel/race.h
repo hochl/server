@@ -23,7 +23,8 @@ extern "C" {
 #endif
 
 #include "magic.h"              /* wegen MAXMAGIETYP */
-
+#include "skill.h"
+    
 #define AT_NONE 0
 #define AT_STANDARD	1
 #define AT_DRAIN_EXP 2
@@ -41,6 +42,68 @@ extern "C" {
 
   struct param;
   struct spell;
+
+  typedef enum {
+      RC_DWARF,                     /* 0 - Zwerg */
+      RC_ELF,
+      RC_GOBLIN = 3,
+      RC_HUMAN,
+
+      RC_TROLL,
+      RC_DAEMON,
+      RC_INSECT,
+      RC_HALFLING,
+      RC_CAT,
+
+      RC_AQUARIAN,
+      RC_ORC,
+      RC_SNOTLING,
+      RC_UNDEAD,
+      RC_ILLUSION,
+
+      RC_FIREDRAGON,
+      RC_DRAGON,
+      RC_WYRM,
+      RC_TREEMAN,
+      RC_BIRTHDAYDRAGON,
+
+      RC_DRACOID,
+      RC_SPECIAL,
+      RC_SPELL,
+      RC_IRONGOLEM,
+      RC_STONEGOLEM,
+
+      RC_SHADOW,
+      RC_SHADOWLORD,
+      RC_IRONKEEPER,
+      RC_ALP,
+      RC_TOAD,
+
+      RC_HIRNTOETER,
+      RC_PEASANT,
+      RC_WOLF = 32,
+
+      RC_SONGDRAGON = 37,
+
+      RC_SEASERPENT = 51,
+      RC_SHADOWKNIGHT,
+      RC_CENTAUR,
+      RC_SKELETON,
+
+      RC_SKELETON_LORD,
+      RC_ZOMBIE,
+      RC_ZOMBIE_LORD,
+      RC_GHOUL,
+      RC_GHOUL_LORD,
+
+      RC_MUS_SPIRIT,
+      RC_GNOME,
+      RC_TEMPLATE,
+      RC_CLONE,
+
+      MAXRACES,
+      NORACE = -1
+  } race_t;
 
   typedef struct att {
     int type;
@@ -78,7 +141,7 @@ extern "C" {
     int df_bonus;               /* Verändert den Verteidigungskill (default: 0) */
     const struct spell *precombatspell;
     struct att attack[10];
-    char bonus[MAXSKILLS];
+    signed char bonus[MAXSKILLS];
     signed char *study_speed;   /* study-speed-bonus in points/turn (0=30 Tage) */
     bool __remove_me_nonplayer;
     int flags;
@@ -106,21 +169,25 @@ extern "C" {
   extern void racelist_clear(struct race_list **rl);
   extern void racelist_insert(struct race_list **rl, const struct race *r);
 
-  extern struct race_list *get_familiarraces(void);
-  extern struct race *races;
 
-  extern struct race *rc_find(const char *);
-  extern const char *rc_name(const struct race *, int);
-  extern struct race *rc_add(struct race *);
-  extern struct race *rc_new(const char *zName);
+  struct race_list *get_familiarraces(void);
+  struct race *races;
+  struct race *get_race(race_t rt);
+  /** TODO: compatibility hacks: **/
+  race_t old_race(const struct race *);
+
+  extern race *rc_get_or_create(const char *name);
+  extern const race *rc_find(const char *);
+  extern const char *rc_name(const race *, int);
   extern int rc_specialdamage(const race *, const race *,
     const struct weapon_type *);
+  void free_races(void);
 
-/* Flags */
-#define RCF_PLAYERRACE     (1<<0)       /* can be played by a player. */
-#define RCF_KILLPEASANTS   (1<<1)       /* Töten Bauern. Dämonen werden nicht über dieses Flag, sondern in randenc() behandelt. */
-#define RCF_SCAREPEASANTS  (1<<2)
-#define RCF_CANSTEAL       (1<<3)
+/* Flags. Do not reorder these without changing json_race() in jsonconf.c */
+#define RCF_NPC            (1<<0)   /* cannot be the race for a player faction (and other limits?) */
+#define RCF_KILLPEASANTS   (1<<1)   /* a monster that eats peasants */
+#define RCF_SCAREPEASANTS  (1<<2)   /* a monster that scares peasants out of the hex */
+#define RCF_NOSTEAL        (1<<3)   /* this race has high stealth, but is not allowed to steal */
 #define RCF_MOVERANDOM     (1<<4)
 #define RCF_CANNOTMOVE     (1<<5)
 #define RCF_LEARN          (1<<6)       /* Lernt automatisch wenn struct faction == 0 */
@@ -169,11 +236,11 @@ extern "C" {
   extern const char *racename(const struct locale *lang, const struct unit *u,
     const race * rc);
 
-#define omniscient(f) (((f)->race)==new_race[RC_ILLUSION] || ((f)->race)==new_race[RC_TEMPLATE])
+#define omniscient(f) ((f)->race==get_race(RC_ILLUSION) || (f)->race==get_race(RC_TEMPLATE))
 
-#define playerrace(rc) (fval((rc), RCF_PLAYERRACE))
-#define dragonrace(rc) ((rc) == new_race[RC_FIREDRAGON] || (rc) == new_race[RC_DRAGON] || (rc) == new_race[RC_WYRM] || (rc) == new_race[RC_BIRTHDAYDRAGON])
-#define humanoidrace(rc) (fval((rc), RCF_UNDEAD) || (rc)==new_race[RC_DRACOID] || playerrace(rc))
+#define playerrace(rc) (!fval((rc), RCF_NPC))
+#define dragonrace(rc) ((rc) == get_race(RC_FIREDRAGON) || (rc) == get_race(RC_DRAGON) || (rc) == get_race(RC_WYRM) || (rc) == get_race(RC_BIRTHDAYDRAGON))
+#define humanoidrace(rc) (fval((rc), RCF_UNDEAD) || (rc)==get_race(RC_DRACOID) || playerrace(rc))
 #define illusionaryrace(rc) (fval(rc, RCF_ILLUSIONARY))
 
   extern bool allowed_dragon(const struct region *src,

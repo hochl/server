@@ -30,7 +30,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "group.h"
 #include "item.h"
 #include "magic.h"
-#include "message.h"
+#include "messages.h"
 #include "move.h"
 #include "names.h"
 #include "order.h"
@@ -74,7 +74,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 static FILE *bdebug;
 
 #define TACTICS_BONUS 1         /* when undefined, we have a tactics round. else this is the bonus tactics give */
-#define TACTICS_MODIFIER 1      /* modifier for generals in the fromt/rear */
+#define TACTICS_MODIFIER 1      /* modifier for generals in the front/rear */
 
 #define CATAPULT_INITIAL_RELOAD 4       /* erster schuss in runde 1 + rng_int() % INITIAL */
 #define CATAPULT_STRUCTURAL_DAMAGE
@@ -620,7 +620,7 @@ weapon_skill(const weapon_type * wtype, const unit * u, bool attacking)
     skill = effskill(u, SK_WEAPONLESS);
     if (skill <= 0) {
       /* wenn kein waffenloser kampf, dann den rassen-defaultwert */
-      if (u_race(u) == new_race[RC_ORC]) {
+        if (u_race(u) == get_race(RC_ORC)) {
         int sword = effskill(u, SK_MELEE);
         int spear = effskill(u, SK_SPEAR);
         skill = _max(sword, spear) - 3;
@@ -709,7 +709,7 @@ static int CavalryBonus(const unit * u, troop enemy, int type)
     if (skl > 0) {
       if (type == BONUS_DAMAGE) {
         int dmg = _min(skl, 8);
-        if (u_race(enemy.fighter->unit) == new_race[RC_TROLL]) {
+        if (u_race(enemy.fighter->unit) == get_race(RC_TROLL)) {
           dmg = dmg / 4;
         } else {
           dmg = dmg / 2;
@@ -836,18 +836,20 @@ static const armor_type *select_armor(troop t, bool shield)
 
 /* Hier ist zu beachten, ob und wie sich Zauber und Artefakte, die
  * Rüstungschutz geben, addieren.
- * - Artefakt I_TROLLBELT gibt Rüstung +1
+ * - Artefakt "trollbelt" gibt Rüstung +1
  * - Zauber Rindenhaut gibt Rüstung +3
  */
+static int trollbelts(const unit *u) {
+    const struct resource_type *belt = rt_find("trollbelt");
+    return belt ? i_get(u->items, belt->itype) : 0;
+}
+
 int select_magicarmor(troop t)
 {
   unit *u = t.fighter->unit;
-  int geschuetzt = 0;
   int ma = 0;
 
-  geschuetzt = _min(get_item(u, I_TROLLBELT), u->number);
-
-  if (geschuetzt > t.index)     /* unser Kandidat wird geschuetzt */
+  if (trollbelts(u) > t.index)     /* unser Kandidat wird geschuetzt */
     ma += 1;
 
   return ma;
@@ -980,7 +982,7 @@ void drain_exp(struct unit *u, int n)
     }
   }
   if (sk != NOSKILL) {
-    skill *sv = get_skill(u, sk);
+    skill *sv = unit_skill(u, sk);
     while (n > 0) {
       if (n >= 30 * u->number) {
         reduce_skill(u, sv, 1);
@@ -1262,7 +1264,7 @@ terminate(troop dt, troop at, int type, const char *damage, bool missile)
 
   assert(dt.index < du->number);
   df->person[dt.index].hp -= rda;
-  if (u_race(au) == new_race[RC_DAEMON]) {
+  if (u_race(au) == get_race(RC_DAEMON)) {
     vampirism(at, rda);
   }
 
@@ -1271,7 +1273,7 @@ terminate(troop dt, troop at, int type, const char *damage, bool missile)
       fprintf(bdebug, "Damage %d, armor %d: %d -> %d HP\n",
         da, ar, df->person[dt.index].hp + rda, df->person[dt.index].hp);
     }
-    if (u_race(au) == new_race[RC_DAEMON]) {
+    if (u_race(au) == get_race(RC_DAEMON)) {
 #ifdef TODO_RUNESWORD
       if (select_weapon(dt, 0, -1) == WP_RUNESWORD)
         continue;
@@ -1286,7 +1288,7 @@ terminate(troop dt, troop at, int type, const char *damage, bool missile)
   }
 
   /* Sieben Leben */
-  if (u_race(du) == new_race[RC_CAT] && (chance(1.0 / 7))) {
+  if (u_race(du) == get_race(RC_CAT) && (chance(1.0 / 7))) {
     assert(dt.index >= 0 && dt.index < du->number);
     df->person[dt.index].hp = unit_max_hp(du);
     return false;
@@ -1845,11 +1847,11 @@ int skilldiff(troop at, troop dt, int dist)
     skdiff += 2;
 
   /* Effekte durch Rassen */
-  if (awp != NULL && u_race(au) == new_race[RC_HALFLING] && dragonrace(u_race(du))) {
+  if (awp != NULL && u_race(au) == get_race(RC_HALFLING) && dragonrace(u_race(du))) {
     skdiff += 5;
   }
 
-  if (u_race(au) == new_race[RC_GOBLIN]) {
+  if (u_race(au) == get_race(RC_GOBLIN)) {
     static int goblin_bonus = -1;
     if (goblin_bonus < 0)
       goblin_bonus =
@@ -2312,40 +2314,35 @@ static void add_tactics(tactics * ta, fighter * fig, int value)
 
 static double horsebonus(const unit * u)
 {
-  static const item_type *it_horse = 0;
-  static const item_type *it_elvenhorse = 0;
-  static const item_type *it_charger = 0;
-  region *r = u->region;
-  int n1 = 0, n2 = 0, n3 = 0;
-  item *itm = u->items;
-  int skl = eff_skill(u, SK_RIDING, r);
+    const item_type *it_horse, *it_elvenhorse, *it_charger;
+    int n1 = 0, n2 = 0, n3 = 0;
+    item *itm;
+    int skl = eff_skill(u, SK_RIDING, u->region);
+    const resource_type *rtype;
+    
+    if (skl < 1) return 0.0;
+    
+    it_horse = ((rtype = get_resourcetype(R_HORSE))!=NULL) ? rtype->itype : 0;
+    it_elvenhorse = ((rtype = get_resourcetype(R_UNICORN))!=NULL) ? rtype->itype : 0;
+    it_charger = ((rtype = get_resourcetype(R_CHARGER))!=NULL) ? rtype->itype : 0;
 
-  if (skl < 1)
-    return 0.0;
-
-  if (it_horse == 0) {
-    it_horse = it_find("horse");
-    it_elvenhorse = it_find("elvenhorse");
-    it_charger = it_find("charger");
-  }
-
-  for (; itm; itm = itm->next) {
-    if (itm->type->flags & ITF_ANIMAL) {
-      if (itm->type == it_elvenhorse)
-        n3 += itm->number;
-      else if (itm->type == it_charger)
-        n2 += itm->number;
-      else if (itm->type == it_horse)
-        n1 += itm->number;
+    for (itm=u->items; itm; itm = itm->next) {
+        if (itm->type->flags & ITF_ANIMAL) {
+            if (itm->type == it_elvenhorse)
+                n3 += itm->number;
+            else if (itm->type == it_charger)
+                n2 += itm->number;
+            else if (itm->type == it_horse)
+                n1 += itm->number;
+        }
     }
-  }
-  if (skl >= 5 && n3 >= u->number)
-    return 0.30;
-  if (skl >= 3 && n2 + n3 >= u->number)
-    return 0.20;
-  if (skl >= 1 && n1 + n2 + n3 >= u->number)
-    return 0.10;
-  return 0.0F;
+    if (skl >= 5 && n3 >= u->number)
+        return 0.30;
+    if (skl >= 3 && n2 + n3 >= u->number)
+        return 0.20;
+    if (skl >= 1 && n1 + n2 + n3 >= u->number)
+        return 0.10;
+    return 0.0F;
 }
 
 double fleechance(unit * u)
@@ -2358,7 +2355,7 @@ double fleechance(unit * u)
   c += (eff_skill(u, SK_STEALTH, r) * 0.05);
   c += horsebonus(u);
 
-  if (u_race(u) == new_race[RC_HALFLING]) {
+  if (u_race(u) == get_race(RC_HALFLING)) {
     c += 0.20;
     c = _min(c, 0.90);
   } else {
@@ -2616,7 +2613,6 @@ static void reorder_fleeing(region * r)
 
 static void aftermath(battle * b)
 {
-  int i;
   region *r = b->region;
   ship *sh;
   side *s;
@@ -2631,20 +2627,6 @@ static void aftermath(battle * b)
     for (df = s->fighters; df; df = df->next) {
       unit *du = df->unit;
       int dead = dead_fighters(df);
-      int pr_mercy = 0;
-
-      /* Regeneration durch PR_MERCY */
-      if (dead > 0 && pr_mercy) {
-        for (i = 0; i != dead; ++i) {
-          if (rng_int() % 100 < pr_mercy) {
-            ++df->alive;
-            ++s->alive;
-            ++s->battle->alive;
-            /* do not change dead here, or loop will not terminate! recalculate later */
-          }
-        }
-        dead = dead_fighters(df);
-      }
 
       /* tote insgesamt: */
       s->dead += dead;
@@ -2679,6 +2661,7 @@ static void aftermath(battle * b)
       int dead = dead_fighters(df);
       int sum_hp = 0;
       int n;
+      int flags = 0;
 
       for (n = 0; n != df->alive; ++n) {
         if (df->person[n].hp > 0) {
@@ -2687,11 +2670,16 @@ static void aftermath(battle * b)
       }
       snumber += du->number;
       if (relevant) {
-        int flags = UFL_LONGACTION | UFL_NOTMOVING;
+        flags = UFL_LONGACTION | UFL_NOTMOVING;
         if (du->status == ST_FLEE) {
           flags -= UFL_NOTMOVING;
         }
-        fset(du, flags);
+      }
+      if (df->alive == 0) {
+          flags |= UFL_DEAD;
+      }
+      if (flags) {
+          fset(du, flags);
       }
       if (sum_hp + df->run.hp < du->hp) {
         /* someone on the ship got damaged, damage the ship */
@@ -3267,7 +3255,7 @@ fighter *make_fighter(battle * b, unit * u, side * s1, bool attack)
   /* change_effect wird in ageing gemacht */
 
   /* Effekte von Artefakten */
-  strongmen = _min(fig->unit->number, get_item(u, I_TROLLBELT));
+  strongmen = _min(fig->unit->number, trollbelts(u));
 
   /* Hitpoints, Attack- und Defence-Boni für alle Personen */
   for (i = 0; i < fig->alive; i++) {
@@ -3386,15 +3374,15 @@ fighter *make_fighter(battle * b, unit * u, side * s1, bool attack)
     fig->horses = fig->unit->number;
     fig->elvenhorses = 0;
   } else {
-    static const item_type *it_charger = 0;
-    if (it_charger == 0) {
-      it_charger = it_find("charger");
-      if (!it_charger) {
-        it_charger = it_find("horse");
+      const resource_type *rt_horse = 0;
+      const resource_type *rt_elvenhorse = 0;
+      rt_elvenhorse = get_resourcetype(R_UNICORN);
+      rt_horse = get_resourcetype(R_CHARGER);
+      if (!rt_horse) {
+          rt_horse = get_resourcetype(R_HORSE);
       }
-    }
-    fig->horses = i_get(u->items, it_charger);
-    fig->elvenhorses = get_item(u, I_ELVENHORSE);
+      fig->horses = rt_horse ? i_get(u->items, rt_horse->itype) : 0;
+      fig->elvenhorses = rt_elvenhorse ? i_get(u->items, rt_elvenhorse->itype) : 0;
   }
 
   if (u_race(u)->battle_flags & BF_EQUIPMENT) {
@@ -3426,18 +3414,18 @@ fighter *make_fighter(battle * b, unit * u, side * s1, bool attack)
   if (fig->horses) {
     if (!fval(r->terrain, CAVALRY_REGION) || r_isforest(r)
       || eff_skill(u, SK_RIDING, r) < CavalrySkill()
-      || u_race(u) == new_race[RC_TROLL] || fval(u, UFL_WERE))
+      || u_race(u) == get_race(RC_TROLL) || fval(u, UFL_WERE))
       fig->horses = 0;
   }
 
   if (fig->elvenhorses) {
-    if (eff_skill(u, SK_RIDING, r) < 5 || u_race(u) == new_race[RC_TROLL]
+      if (eff_skill(u, SK_RIDING, r) < 5 || u_race(u) == get_race(RC_TROLL)
       || fval(u, UFL_WERE))
       fig->elvenhorses = 0;
   }
 
   /* Schauen, wie gut wir in Taktik sind. */
-  if (tactics > 0 && u_race(u) == new_race[RC_INSECT])
+  if (tactics > 0 && u_race(u) == get_race(RC_INSECT))
     tactics -= 1 - (int)log10(fig->side->size[SUM_ROW]);
 #ifdef TACTICS_MODIFIER
   if (tactics > 0 && statusrow(fig->status) == FIGHT_ROW)
@@ -3921,7 +3909,7 @@ static bool start_battle(region * r, battle ** bp)
           slave_ct = ct_find("slavery");
           calm_ct = ct_find("calmmonster");
         }
-        if (get_keyword(ord) == K_ATTACK) {
+        if (getkeyword(ord) == K_ATTACK) {
           unit *u2;
           fighter *c1, *c2;
           ship *lsh = NULL;
@@ -3979,8 +3967,7 @@ static bool start_battle(region * r, battle ** bp)
 
           /* Ende Fehlerbehandlung Angreifer */
 
-          init_tokens(ord);
-          skip_token();
+          init_order(ord);
           /* attackierte Einheit ermitteln */
           u2 = getunit(r, u->faction);
 
@@ -4075,70 +4062,6 @@ static bool start_battle(region * r, battle ** bp)
   return fighting;
 }
 
-static void battle_stats(FILE * F, battle * b)
-{
-  typedef struct stat_info {
-    struct stat_info *next;
-    const weapon_type *wtype;
-    int level;
-    int number;
-  } stat_info;
-  side *s;
-
-  for (s = b->sides; s != b->sides + b->nsides; ++s) {
-    fighter *df;
-    stat_info *stats = NULL, *stat;
-
-    for (df = s->fighters; df; df = df->next) {
-      unit *du = df->unit;
-      troop dt;
-      stat_info *slast = NULL;
-
-      dt.fighter = df;
-      for (dt.index = 0; dt.index != du->number; ++dt.index) {
-        weapon *wp = preferred_weapon(dt, true);
-        int level = wp ? wp->attackskill : 0;
-        const weapon_type *wtype = wp ? wp->type : NULL;
-        stat_info **slist = &stats;
-
-        if (slast && slast->wtype == wtype && slast->level == level) {
-          ++slast->number;
-          continue;
-        }
-        while (*slist && (*slist)->wtype != wtype) {
-          slist = &(*slist)->next;
-        }
-        while (*slist && (*slist)->wtype == wtype && (*slist)->level > level) {
-          slist = &(*slist)->next;
-        }
-        stat = *slist;
-        if (stat == NULL || stat->wtype != wtype || stat->level != level) {
-          stat = (stat_info*)calloc(1, sizeof(stat_info));
-          stat->wtype = wtype;
-          stat->level = level;
-          stat->next = *slist;
-          *slist = stat;
-        }
-        slast = stat;
-        ++slast->number;
-      }
-    }
-
-    fprintf(F, "##STATS## Heer %u - %s:\n", army_index(s),
-      factionname(s->faction));
-    for (stat = stats; stat != NULL; stat = stat->next) {
-      fprintf(F, "%s %u : %u\n",
-        stat->wtype ? stat->wtype->itype->rtype->_name[0] : "none", stat->level,
-        stat->number);
-    }
-    while (stats) {
-      stat_info *stat = stats;
-      stats = stat->next;
-      free(stat);
-    }
-  }
-}
-
 /** execute one round of attacks
  * fig->fighting is used to determine who attacks, not fig->alive, since
  * the latter may be influenced by attacks that already took place.
@@ -4205,7 +4128,7 @@ static void battle_flee(battle * b)
           /* keine Flucht von Schiffen auf hoher See */
           continue;
         }
-        if (fval(u_race(u), RCF_UNDEAD) || u_race(u) == new_race[RC_SHADOWKNIGHT]) {
+        if (fval(u_race(u), RCF_UNDEAD) || u_race(u) == get_race(RC_SHADOWKNIGHT)) {
           /* Untote fliehen nicht. Warum eigentlich? */
           continue;
         }
@@ -4307,9 +4230,6 @@ void do_battle(region * r)
     b->has_tactics_turn = false;
   }
 
-  if (b->region->flags & RF_COMBATDEBUG)
-    battle_stats(bdebug, b);
-
   /* PRECOMBATSPELLS */
   do_combatmagic(b, DO_PRECOMBATSPELL);
 
@@ -4339,11 +4259,6 @@ void do_battle(region * r)
     free_battle(b);
     free(b);
   }
-}
-
-void battle_init(battle * b) {
-  assert(b);
-  memset(b, 0, sizeof(battle));
 }
 
 void battle_free(battle * b) {

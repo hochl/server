@@ -20,6 +20,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define H_KRNL_BUILD
 
 #include "types.h"
+#include "direction.h"
+#include "skill.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,7 +37,6 @@ extern "C" {
   typedef struct requirement {
     const struct resource_type *rtype;
     int number;
-    double recycle;             /* recycling quota */
   } requirement;
 
   typedef struct construction {

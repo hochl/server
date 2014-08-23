@@ -1,8 +1,22 @@
 #!/bin/sh
-if [ ! -e ../CMakeLists.txt ]; then
-  echo "are you sure you are in the build directory?"
-  exit
-fi
+ROOT=$(pwd)
+while [ ! -d $ROOT/.git ]; do
+  ROOT=$(dirname $ROOT)
+  if [ "$ROOT" == "/" ; then
+    echo "could not find root, are you in the git repository?"
+    exit
+  fi
+done
+
+[ -z $BUILD ] && BUILD=Debug
+MACHINE=`uname -m`
+[ -z "$CC" ] && [ ! -z `which gcc` ] && CC="gcc"
+[ -z "$CC" ] && [ ! -z `which tcc` ] && CC="tcc"
+[ -z "$CC" ] && [ ! -z `which cc` ] && CC="cc"
+BIN_DIR="build-$MACHINE-$CC-$BUILD"
+mkdir -p $BIN_DIR
+ln -sf $BIN_DIR $BUILD
+cd $BIN_DIR
 
 MACHINE=$(gcc -dumpmachine)
 rm -f CMakeCache.txt
@@ -21,8 +35,10 @@ fi
 
 cmake .. \
  -DCMAKE_MODULE_PATH=$PWD/../cmake/Modules \
- -DCMAKE_BUILD_TYPE=Debug \
+ -DCMAKE_BUILD_TYPE=$BUILD \
  -DCMAKE_LIBRARY_PATH=$LIBRARY_PATH \
  -DCMAKE_INCLUDE_PATH=$INCLUDE_PATH \
  -DCMAKE_PREFIX_PATH=$PREFIX_PATH \
- -DCMAKE_INSTALL_PREFIX=$HOME/eressea $*
+ -DCMAKE_INSTALL_PREFIX=$HOME/eressea/server $*
+cd $OLDPWD
+

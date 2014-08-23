@@ -35,7 +35,7 @@ static FILE *logfile;
 #define LOG_MAXBACKUPS 5
 void log_flush(void)
 {
-  fflush(logfile);
+  if (logfile) fflush(logfile);
 }
 
 void log_puts(const char *str)
@@ -169,6 +169,14 @@ static void _log_write(FILE * stream, int codepage, const char * prefix, const c
   }
 }
 
+static void _log_writeln(FILE * stream, int codepage, const char * prefix, const char *format, va_list args)
+{
+    size_t len = strlen(format);
+    _log_write(stream, codepage, prefix, format, args);
+    if (format[len-1]!='\n') {
+        fputc('\n', stream);
+    }
+}
 void log_debug(const char *format, ...)
 {
   const char * prefix = "DEBUG";
@@ -178,7 +186,7 @@ void log_debug(const char *format, ...)
   if (logfile && (log_flags & mask)) {
     va_list args;
     va_start(args, format);
-    _log_write(logfile, 0, prefix, format, args);
+    _log_writeln(logfile, 0, prefix, format, args);
     va_end(args);
   }
 
@@ -188,7 +196,7 @@ void log_debug(const char *format, ...)
     if (!dupe) {
       va_list args;
       va_start(args, format);
-      _log_write(stderr, stdio_codepage, prefix, format, args);
+      _log_writeln(stderr, stdio_codepage, prefix, format, args);
       va_end(args);
     }
   }
@@ -206,7 +214,7 @@ void log_warning(const char *format, ...)
   if (logfile && (log_flags & mask)) {
     va_list args;
     va_start(args, format);
-    _log_write(logfile, 0, prefix, format, args);
+    _log_writeln(logfile, 0, prefix, format, args);
     va_end(args);
   }
 
@@ -216,7 +224,7 @@ void log_warning(const char *format, ...)
     if (!dupe) {
       va_list args;
       va_start(args, format);
-      _log_write(stderr, stdio_codepage, prefix, format, args);
+      _log_writeln(stderr, stdio_codepage, prefix, format, args);
       va_end(args);
     }
   }
@@ -234,7 +242,7 @@ void log_error(const char *format, ...)
   if (logfile && (log_flags & mask)) {
     va_list args;
     va_start(args, format);
-    _log_write(logfile, 0, prefix, format, args);
+    _log_writeln(logfile, 0, prefix, format, args);
     va_end(args);
   }
 
@@ -244,7 +252,7 @@ void log_error(const char *format, ...)
     if (!dupe) {
       va_list args;
       va_start(args, format);
-      _log_write(stderr, stdio_codepage, prefix, format, args);
+      _log_writeln(stderr, stdio_codepage, prefix, format, args);
       va_end(args);
     }
   }
@@ -262,7 +270,7 @@ void log_info(const char *format, ...)
   if (logfile && (log_flags & mask)) {
     va_list args;
     va_start(args, format);
-    _log_write(logfile, 0, prefix, format, args);
+    _log_writeln(logfile, 0, prefix, format, args);
     va_end(args);
   }
 
@@ -272,7 +280,7 @@ void log_info(const char *format, ...)
     if (!dupe) {
       va_list args;
       va_start(args, format);
-      _log_write(stderr, stdio_codepage, prefix, format, args);
+      _log_writeln(stderr, stdio_codepage, prefix, format, args);
       va_end(args);
     }
   }

@@ -18,11 +18,13 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #ifndef H_KRNL_FACTION
 #define H_KRNL_FACTION
+
+#include "skill.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-  struct player;
   struct alliance;
   struct item;
   struct seen_region;
@@ -51,14 +53,12 @@ extern "C" {
 
 #define FFL_SAVEMASK (FFL_DEFENDER|FFL_NEWID|FFL_GM|FFL_NPC|FFL_NOTIMEOUT|FFL_DBENTRY|FFL_NOIDLEOUT)
 
-  struct faction *get_monsters(void);
 #define is_monsters(f) ((f)->flags&FFL_NPC)
 
-  typedef struct faction {
+typedef struct faction {
     struct faction *next;
     struct faction *nexthash;
 
-    struct player *owner;
 #ifdef SMART_INTERVALS
     struct region *first;
     struct region *last;
@@ -107,18 +107,22 @@ extern "C" {
     struct item *items;         /* items this faction can claim */
     struct seen_region **seen;
     struct quicklist *seen_factions;
-  } faction;
+} faction;
 
-  extern struct faction *factions;
+extern struct faction *factions;
 
-  extern const struct unit *random_unit_in_faction(const struct faction *f);
-  extern const char *factionname(const struct faction *f);
-  extern struct unit *addplayer(struct region *r, faction * f);
-  extern struct faction *addfaction(const char *email, const char *password,
+struct faction *get_monsters(void);
+struct faction *get_or_create_monsters(void);
+int max_magicians(const faction * f);
+void set_show_item(faction * f, const struct item_type *itype);
+
+const struct unit *random_unit_in_faction(const struct faction *f);
+const char *factionname(const struct faction *f);
+struct unit *addplayer(struct region *r, faction * f);
+struct faction *addfaction(const char *email, const char *password,
     const struct race *frace, const struct locale *loc, int subscription);
-  extern bool checkpasswd(const faction * f, const char *passwd,
-    bool shortp);
-  extern void destroyfaction(faction * f);
+bool checkpasswd(const faction * f, const char *passwd, bool shortp);
+void destroyfaction(faction * f);
 
   extern void set_alliance(struct faction *a, struct faction *b, int status);
   extern int get_alliance(const struct faction *a, const struct faction *b);
@@ -151,6 +155,11 @@ extern "C" {
   bool valid_race(const struct faction *f, const struct race *rc);
 
   struct spellbook * faction_get_spellbook(struct faction *f);
+
+/* skills */
+  int skill_limit(struct faction *f, skill_t sk);
+  int count_skill(struct faction *f, skill_t sk);
+
 #ifdef __cplusplus
 }
 #endif

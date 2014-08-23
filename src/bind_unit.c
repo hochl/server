@@ -31,7 +31,7 @@ without prior permission by the authors of Eressea.
 #include <kernel/group.h>
 #include <kernel/item.h>
 #include <kernel/magic.h>
-#include <kernel/message.h>
+#include <kernel/messages.h>
 #include <kernel/move.h>
 #include <kernel/order.h>
 #include <kernel/pool.h>
@@ -39,7 +39,6 @@ without prior permission by the authors of Eressea.
 #include <kernel/region.h>
 #include <kernel/spellbook.h>
 #include <kernel/ship.h>
-#include <kernel/skill.h>
 #include <kernel/spell.h>
 #include <kernel/unit.h>
 
@@ -393,10 +392,10 @@ static int tolua_unit_getskill(lua_State * L)
 {
   unit *self = (unit *) tolua_tousertype(L, 1, 0);
   const char *skname = tolua_tostring(L, 2, 0);
-  skill_t sk = sk_find(skname);
+  skill_t sk = findskill(skname);
   int value = -1;
   if (sk != NOSKILL) {
-    skill *sv = get_skill(self, sk);
+    skill *sv = unit_skill(self, sk);
     if (sv) {
       value = sv->level;
     } else
@@ -410,7 +409,7 @@ static int tolua_unit_effskill(lua_State * L)
 {
   unit *self = (unit *) tolua_tousertype(L, 1, 0);
   const char *skname = tolua_tostring(L, 2, 0);
-  skill_t sk = sk_find(skname);
+  skill_t sk = findskill(skname);
   int value = (sk == NOSKILL) ? -1 : eff_skill(self, sk, self->region);
   lua_pushinteger(L, value);
   return 1;
@@ -572,7 +571,7 @@ static int tolua_unit_setskill(lua_State * L)
   unit *self = (unit *) tolua_tousertype(L, 1, 0);
   const char *skname = tolua_tostring(L, 2, 0);
   int level = (int)tolua_tonumber(L, 3, 0);
-  skill_t sk = sk_find(skname);
+  skill_t sk = findskill(skname);
   if (sk != NOSKILL) {
     set_level(self, sk, level);
   } else {
@@ -847,19 +846,16 @@ static int tolua_unit_get_race(lua_State * L)
 
 static int tolua_unit_set_race(lua_State * L)
 {
-  unit *self = (unit *) tolua_tousertype(L, 1, 0);
-  const char *rcname = tolua_tostring(L, 2, 0);
-  race *rc = rc_find(rcname);
-  if (rc != NULL) {
-    if (count_unit(self))
-      --self->faction->no_units;
-    if (self->irace == u_race(self))
-      self->irace = NULL;
-    u_setrace(self, rc);
-    if (count_unit(self))
-      --self->faction->no_units;
-  }
-  return 0;
+    unit *self = (unit *) tolua_tousertype(L, 1, 0);
+    const char *rcname = tolua_tostring(L, 2, 0);
+    const race *rc = rc_find(rcname);
+    if (rc != NULL) {
+        if (self->irace == u_race(self)) {
+            self->irace = NULL;
+        }
+        u_setrace(self, rc);
+    }
+    return 0;
 }
 
 static int tolua_unit_destroy(lua_State * L)

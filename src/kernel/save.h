@@ -34,15 +34,13 @@ extern "C" {
 
   int readorders(const char *filename);
   int creategame(void);
-  extern int readgame(const char *filename, int backup);
+  int readgame(const char *filename, int backup);
   int writegame(const char *filename);
 
 /* Versionsänderungen: */
   extern int data_version;
-  extern const char *game_name;
   extern int enc_gamedata;
 
-  extern void init_locales(void);
   extern int current_turn(void);
 
   extern void read_items(struct storage *store, struct item **it);

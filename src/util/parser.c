@@ -53,8 +53,10 @@ void init_tokens_str(const char *initstr, char *cmd)
 {
   if (states == NULL) {
     states = malloc(sizeof(parser_state));
-  } else if (states->current_cmd)
+  }
+  else if (states->current_cmd && states->current_cmd!=cmd) {
     free(states->current_cmd);
+  }
   states->current_cmd = cmd;
   states->current_token = initstr;
 }
@@ -79,8 +81,11 @@ void parser_popstate(void)
 
 bool parser_end(void)
 {
-  eatwhitespace_c(&states->current_token);
-  return *states->current_token == 0;
+    if (states->current_token) {
+        eatwhitespace_c(&states->current_token);
+        return *states->current_token == 0;
+    }
+    return true;
 }
 
 void skip_token(void)
@@ -130,9 +135,13 @@ const char *parse_token(const char **str)
   bool escape = false;
   const char *ctoken = *str;
 
-  assert(ctoken);
-
+  if (!ctoken) {
+      return 0;
+  }
   eatwhitespace_c(&ctoken);
+  if (!*ctoken) {
+      return 0;
+  }
   while (*ctoken && cursor - lbuf < MAXTOKENSIZE - 1) {
     ucs4_t ucs;
     size_t len;

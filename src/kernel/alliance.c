@@ -19,7 +19,7 @@ without prior permission by the authors of Eressea.
 /* kernel includes */
 #include <kernel/building.h>
 #include <kernel/faction.h>
-#include <kernel/message.h>
+#include <kernel/messages.h>
 #include <kernel/order.h>
 #include <kernel/region.h>
 #include <kernel/unit.h>
@@ -158,8 +158,7 @@ static void perform_kick(void)
 
     if (al && alliance_get_leader(al) == ta->u->faction) {
       faction *f;
-      init_tokens(ta->ord);
-      skip_token();
+      init_order(ta->ord);
       skip_token();
       f = getfaction();
       if (f && f_get_alliance(f) == al) {
@@ -180,8 +179,7 @@ static void perform_new(void)
     int id;
     faction *f = ta->u->faction;
 
-    init_tokens(ta->ord);
-    skip_token();
+    init_order(ta->ord);
     skip_token();
     id = getid();
 
@@ -216,8 +214,7 @@ static void perform_transfer(void)
 
     if (al && alliance_get_leader(al) == ta->u->faction) {
       faction *f;
-      init_tokens(ta->ord);
-      skip_token();
+      init_order(ta->ord);
       skip_token();
       f = getfaction();
       if (f && f_get_alliance(f) == al) {
@@ -237,8 +234,7 @@ static void perform_join(void)
     faction *fj = ta->u->faction;
     int aid;
 
-    init_tokens(ta->ord);
-    skip_token();
+    init_order(ta->ord);
     skip_token();
     aid = getid();
     if (aid) {
@@ -250,8 +246,7 @@ static void perform_join(void)
           faction *fi = ti->u->faction;
           if (fi && f_get_alliance(fi) == al) {
             int fid;
-            init_tokens(ti->ord);
-            skip_token();
+            init_order(ti->ord);
             skip_token();
             fid = getid();
             if (fid == fj->no) {
@@ -290,7 +285,7 @@ static void execute(const struct syntaxtree *syntax, keyword_t kwd)
         void *root = stree_find(syntax, lang);
         order *ord;
         for (ord = u->orders; ord; ord = ord->next) {
-          if (get_keyword(ord) == kwd) {
+          if (getkeyword(ord) == kwd) {
             do_command(root, u, ord);
             run = 1;
           }
@@ -445,18 +440,18 @@ int victorycondition(const alliance * al, const char *name)
     const char **igem;
 
     for (igem = gems; *igem; ++igem) {
-      const struct item_type *itype = it_find(*igem);
+      const struct resource_type *rtype = rt_find(*igem);
       quicklist *flist = al->members;
       int qi;
       bool found = false;
 
-      assert(itype != NULL);
+      assert(rtype);
       for (qi = 0; flist && !found; ql_advance(&flist, &qi, 1)) {
         faction *f = (faction *) ql_get(flist, 0);
         unit *u;
 
         for (u = f->units; u; u = u->nextF) {
-          if (i_get(u->items, itype) > 0) {
+          if (i_get(u->items, rtype->itype) > 0) {
             found = true;
             break;
           }

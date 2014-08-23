@@ -69,7 +69,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 attrib_type at_creator = {
   "creator"
-    /* Rest ist NULL; temporäres, nicht alterndes Attribut */
+    /* Rest ist NULL; temporaeres, nicht alterndes Attribut */
 };
 
 #define UMAXHASH MAXUNITS
@@ -220,28 +220,30 @@ static buddy *get_friends(const unit * u, int *numfriends)
  */
 int gift_items(unit * u, int flags)
 {
-  region *r = u->region;
-  item **itm_p = &u->items;
-  int retval = 0;
-  int rule = rule_give();
+    const struct resource_type *rsilver = get_resourcetype(R_SILVER);
+    const struct resource_type *rhorse = get_resourcetype(R_HORSE);
+    region *r = u->region;
+    item **itm_p = &u->items;
+    int retval = 0;
+    int rule = rule_give();
+    
+    assert(u->region);
+    assert(u->faction);
 
-  assert(u->region);
-  assert(u->faction);
+    if ((u->faction->flags & FFL_QUIT) == 0 || (rule & GIVE_ONDEATH) == 0) {
+        if ((rule & GIVE_ALLITEMS) == 0 && (flags & GIFT_FRIENDS))
+            flags -= GIFT_FRIENDS;
+        if ((rule & GIVE_PEASANTS) == 0 && (flags & GIFT_PEASANTS))
+            flags -= GIFT_PEASANTS;
+        if ((rule & GIVE_SELF) == 0 && (flags & GIFT_SELF))
+            flags -= GIFT_SELF;
+    }
 
-  if ((u->faction->flags & FFL_QUIT) == 0 || (rule & GIVE_ONDEATH) == 0) {
-    if ((rule & GIVE_ALLITEMS) == 0 && (flags & GIFT_FRIENDS))
-      flags -= GIFT_FRIENDS;
-    if ((rule & GIVE_PEASANTS) == 0 && (flags & GIFT_PEASANTS))
-      flags -= GIFT_PEASANTS;
-    if ((rule & GIVE_SELF) == 0 && (flags & GIFT_SELF))
-      flags -= GIFT_SELF;
-  }
-
-  if (u->items == NULL || fval(u_race(u), RCF_ILLUSIONARY))
-    return 0;
-  if ((u_race(u)->ec_flags & GIVEITEM) == 0)
-    return 0;
-
+    if (u->items == NULL || fval(u_race(u), RCF_ILLUSIONARY))
+        return 0;
+    if ((u_race(u)->ec_flags & GIVEITEM) == 0)
+        return 0;
+    
   /* at first, I should try giving my crap to my own units in this region */
   if (u->faction && (u->faction->flags & FFL_QUIT) == 0 && (flags & GIFT_SELF)) {
     unit *u2, *u3 = NULL;
@@ -303,11 +305,12 @@ int gift_items(unit * u, int flags)
 
     if (flags & GIFT_PEASANTS) {
       if (!fval(u->region->terrain, SEA_REGION)) {
-        if (itm->type == olditemtype[I_HORSE]) {
-          rsethorses(r, rhorses(r) + itm->number);
-          itm->number = 0;
-        } else if (itm->type == i_silver) {
+        if (itm->type->rtype == rsilver) {
           rsetmoney(r, rmoney(r) + itm->number);
+          itm->number = 0;
+        }
+        else if (itm->type->rtype == rhorse) {
+          rsethorses(r, rhorses(r) + itm->number);
           itm->number = 0;
         }
       }
@@ -327,7 +330,7 @@ void make_zombie(unit * u)
 {
   u_setfaction(u, get_monsters());
   scale_number(u, 1);
-  u_setrace(u, new_race[RC_ZOMBIE]);
+  u_setrace(u, get_race(RC_ZOMBIE));
   u->irace = NULL;
 }
 
@@ -616,7 +619,7 @@ void usetcontact(unit * u, const unit * u2)
 }
 
 bool ucontact(const unit * u, const unit * u2)
-/* Prüft, ob u den Kontaktiere-Befehl zu u2 gesetzt hat. */
+/* Prueft, ob u den Kontaktiere-Befehl zu u2 gesetzt hat. */
 {
   attrib *ru;
   if (u->faction == u2->faction)
@@ -679,7 +682,7 @@ attrib_type at_stealth = {
 
 void u_seteffstealth(unit * u, int value)
 {
-  if (skill_enabled[SK_STEALTH]) {
+  if (skill_enabled(SK_STEALTH)) {
     attrib *a = NULL;
     if (fval(u, UFL_STEALTH)) {
       a = a_find(u->attribs, &at_stealth);
@@ -701,7 +704,7 @@ void u_seteffstealth(unit * u, int value)
 
 int u_geteffstealth(const struct unit *u)
 {
-  if (skill_enabled[SK_STEALTH]) {
+  if (skill_enabled(SK_STEALTH)) {
     if (fval(u, UFL_STEALTH)) {
       attrib *a = a_find(u->attribs, &at_stealth);
       if (a != NULL)
@@ -713,7 +716,7 @@ int u_geteffstealth(const struct unit *u)
 
 int get_level(const unit * u, skill_t id)
 {
-  if (skill_enabled[id]) {
+  if (skill_enabled(id)) {
     skill *sv = u->skills;
     while (sv != u->skills + u->skill_size) {
       if (sv->id == id) {
@@ -729,7 +732,7 @@ void set_level(unit * u, skill_t sk, int value)
 {
   skill *sv = u->skills;
 
-  if (!skill_enabled[sk])
+  if (!skill_enabled(sk))
     return;
 
   if (value == 0) {
@@ -773,7 +776,7 @@ ship *leftship(const unit * u)
 {
   attrib *a = a_find(u->attribs, &at_leftship);
 
-  /* Achtung: Es ist nicht garantiert, daß der Rückgabewert zu jedem
+  /* Achtung: Es ist nicht garantiert, dass der Rueckgabewert zu jedem
    * Zeitpunkt noch auf ein existierendes Schiff zeigt! */
 
   if (a)
@@ -786,7 +789,7 @@ void u_set_building(unit * u, building * b)
 {
   assert(!u->building); /* you must leave first */
   u->building = b;
-  if (b && !b->_owner) {
+  if (b && (!b->_owner || b->_owner->number <= 0)) {
     building_set_owner(u);
   }
 }
@@ -795,7 +798,7 @@ void u_set_ship(unit * u, ship * sh)
 {
   assert(!u->ship); /* you must leave_ship */
   u->ship = sh;
-  if (sh && !sh->_owner) {
+  if (sh && (!sh->_owner || sh->_owner->number <= 0)) {
     ship_set_owner(u);
   }
 }
@@ -927,7 +930,7 @@ void transfermen(unit * u, unit * u2, int n)
   if (n == 0)
     return;
   assert(n > 0);
-  /* "hat attackiert"-status wird übergeben */
+  /* "hat attackiert"-status wird uebergeben */
 
   if (u2) {
     skill *sv, *sn;
@@ -939,8 +942,8 @@ void transfermen(unit * u, unit * u2, int n)
     for (sk = 0; sk != MAXSKILLS; ++sk) {
       int weeks, level = 0;
 
-      sv = get_skill(u, sk);
-      sn = get_skill(u2, sk);
+      sv = unit_skill(u, sk);
+      sn = unit_skill(u2, sk);
 
       if (sv == NULL && sn == NULL)
         continue;
@@ -1013,7 +1016,7 @@ void transfermen(unit * u, unit * u2, int n)
     set_number(u2, u2->number + n);
     hp -= u->hp;
     u2->hp += hp;
-    /* TODO: Das ist schnarchlahm! und gehört nicht hierhin */
+    /* TODO: Das ist schnarchlahm! und gehoert nicht hierhin */
     a = a_find(u2->attribs, &at_effect);
     while (a && a->type == &at_effect) {
       attrib *an = a->next;
@@ -1047,7 +1050,7 @@ struct building *inside_building(const struct unit *u)
     /* Unterhalt nicht bezahlt */
     return NULL;
   } else if (u->building->size < u->building->type->maxsize) {
-    /* Gebäude noch nicht fertig */
+    /* Gebaeude noch nicht fertig */
     return NULL;
   } else {
     int p = 0, cap = buildingcapacity(u->building);
@@ -1074,9 +1077,7 @@ void u_setfaction(unit * u, faction * f)
     if (u->faction == f)
         return;
     if (u->faction) {
-        if (count_unit(u)) {
-            --u->faction->no_units;
-        }
+        --u->faction->no_units;
         set_number(u, 0);
         join_group(u, NULL);
         free_orders(&u->orders);
@@ -1112,12 +1113,12 @@ void u_setfaction(unit * u, faction * f)
     if (cnt) {
         set_number(u, cnt);
     }
-    if (f && count_unit(u)) {
+    if (f) {
         ++f->no_units;
     }
 }
 
-/* vorsicht Sprüche können u->number == RS_FARVISION haben! */
+/* vorsicht Sprueche koennen u->number == RS_FARVISION haben! */
 void set_number(unit * u, int count)
 {
   assert(count >= 0);
@@ -1126,7 +1127,7 @@ void set_number(unit * u, int count)
   if (count == 0) {
     u->flags &= ~(UFL_HERO);
   }
-  if (u->faction && playerrace(u_race(u))) {
+  if (u->faction) {
     u->faction->num_people += count - u->number;
   }
   u->number = (unsigned short)count;
@@ -1187,7 +1188,7 @@ skill *add_skill(unit * u, skill_t id)
   return sv;
 }
 
-skill *get_skill(const unit * u, skill_t sk)
+skill *unit_skill(const unit * u, skill_t sk)
 {
   skill *sv = u->skills;
   while (sv != u->skills + u->skill_size) {
@@ -1210,30 +1211,31 @@ bool has_skill(const unit * u, skill_t sk)
   return false;
 }
 
+static int item_invis(const unit *u) {
+    const struct resource_type *rring = get_resourcetype(R_RING_OF_INVISIBILITY);
+    const struct resource_type *rsphere = get_resourcetype(R_SPHERE_OF_INVISIBILITY);
+    return (rring ? i_get(u->items, rring->itype) : 0)
+      + (rsphere ? i_get(u->items, rsphere->itype) * 100 : 0);
+}
+
 static int item_modification(const unit * u, skill_t sk, int val)
 {
-  /* Presseausweis: *2 Spionage, 0 Tarnung */
-  if (sk == SK_SPY && get_item(u, I_PRESSCARD) >= u->number) {
-    val = val * 2;
-  } else if (sk == SK_STEALTH) {
+    if (sk == SK_STEALTH) {
 #if NEWATSROI == 1
-    if (get_item(u, I_RING_OF_INVISIBILITY)
-      + 100 * get_item(u, I_SPHERE_OF_INVISIBILITY) >= u->number) {
-      val += ROIBONUS;
+        if (item_invis(u) >= u->number) {
+            val += ROIBONUS;
+        }
+#endif
+    }
+#if NEWATSROI == 1
+    if (sk == SK_PERCEPTION) {
+        const struct resource_type *rtype = get_resourcetype(R_AMULET_OF_TRUE_SEEING);
+        if (i_get(u->items, rtype->itype) >= u->number) {
+            val += ATSBONUS;
+        }
     }
 #endif
-    if (get_item(u, I_PRESSCARD) >= u->number) {
-      val = 0;
-    }
-  }
-#if NEWATSROI == 1
-  if (sk == SK_PERCEPTION) {
-    if (get_item(u, I_AMULET_OF_TRUE_SEEING) >= u->number) {
-      val += ATSBONUS;
-    }
-  }
-#endif
-  return val;
+    return val;
 }
 
 static int att_modification(const unit * u, skill_t sk)
@@ -1266,8 +1268,8 @@ static int att_modification(const unit * u, skill_t sk)
   }
 
   /* TODO hier kann nicht mit get/iscursed gearbeitet werden, da nur der
-   * jeweils erste vom Typ C_GBDREAM zurückgegen wird, wir aber alle
-   * durchsuchen und aufaddieren müssen */
+   * jeweils erste vom Typ C_GBDREAM zurueckgegen wird, wir aber alle
+   * durchsuchen und aufaddieren muessen */
   if (u->region) {
     double bonus = 0, malus = 0;
     attrib *a = a_find(u->region->attribs, &at_curse);
@@ -1276,7 +1278,7 @@ static int att_modification(const unit * u, skill_t sk)
       if (curse_active(c) && c->type == gbdream_ct) {
         double mod = curse_geteffect(c);
         unit *mage = c->magician;
-        /* wir suchen jeweils den größten Bonus und den größten Malus */
+        /* wir suchen jeweils den groesten Bonus und den groesten Malus */
         if (mod > bonus) {
           if (mage == NULL || mage->number == 0
             || alliedunit(mage, u->faction, HELP_GUARD)) {
@@ -1328,7 +1330,7 @@ get_modifier(const unit * u, skill_t sk, int level, const region * r,
 
 int eff_skill(const unit * u, skill_t sk, const region * r)
 {
-  if (skill_enabled[sk]) {
+  if (skill_enabled(sk)) {
     int level = get_level(u, sk);
     if (level > 0) {
       int mlevel = level + get_modifier(u, sk, level, r, false);
@@ -1360,21 +1362,21 @@ int eff_skill_study(const unit * u, skill_t sk, const region * r)
 int invisible(const unit * target, const unit * viewer)
 {
 #if NEWATSROI == 1
-  return 0;
-#else
-  if (viewer && viewer->faction == target->faction)
     return 0;
-  else {
-    int hidden =
-      get_item(target, I_RING_OF_INVISIBILITY) + 100 * get_item(target,
-      I_SPHERE_OF_INVISIBILITY);
-    if (hidden) {
-      hidden = _min(hidden, target->number);
-      if (viewer)
-        hidden -= get_item(viewer, I_AMULET_OF_TRUE_SEEING);
+#else
+    if (viewer && viewer->faction == target->faction)
+        return 0;
+    else {
+        int hidden = item_invis(target);
+        if (hidden) {
+            hidden = _min(hidden, target->number);
+            if (viewer) {
+                const resource_type *rtype = get_resourcetype(R_AMULET_OF_TRUE_SEEING);
+                hidden -= i_get(viewer->items, rtype->itype);
+            }
+        }
+        return hidden;
     }
-    return hidden;
-  }
 #endif
 }
 
@@ -1487,7 +1489,7 @@ unit *create_unit(region * r, faction * f, int number, const struct race *urace,
   if (r)
     move_unit(u, r, NULL);
 
-  /* u->race muss bereits gesetzt sein, wird für default-hp gebraucht */
+  /* u->race muss bereits gesetzt sein, wird fuer default-hp gebraucht */
   /* u->region auch */
   u->hp = unit_max_hp(u) * number;
 
@@ -1503,7 +1505,7 @@ unit *create_unit(region * r, faction * f, int number, const struct race *urace,
     /* erbt Kampfstatus */
     setstatus(u, creator->status);
 
-    /* erbt Gebäude/Schiff */
+    /* erbt Gebaeude/Schiff */
     if (creator->region == r) {
       if (creator->building) {
         u_set_building(u, creator->building);
@@ -1684,7 +1686,7 @@ int unit_max_hp(const unit * u)
     p = pow(effskill(u, SK_STAMINA) / 2.0, 1.5) * 0.2;
     h += (int)(h * p + 0.5);
   }
-  /* der healing curse verändert die maximalen hp */
+  /* der healing curse veraendert die maximalen hp */
   if (heal_ct) {
     curse *c = get_curse(u->region->attribs, heal_ct);
     if (c) {
@@ -1742,7 +1744,7 @@ void scale_number(unit * u, int n)
 
 const struct race *u_irace(const struct unit *u)
 {
-  if (u->irace && skill_enabled[SK_STEALTH]) {
+  if (u->irace && skill_enabled(SK_STEALTH)) {
     return u->irace;
   }
   return u->race_;
@@ -1786,3 +1788,9 @@ struct spellbook * unit_get_spellbook(const struct unit * u)
   }
   return 0;
 }
+
+int effskill(const unit * u, skill_t sk)
+{
+  return eff_skill(u, sk, u->region);
+}
+

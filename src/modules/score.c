@@ -30,7 +30,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <kernel/race.h>
 #include <kernel/region.h>
 #include <kernel/ship.h>
-#include <kernel/skill.h>
 #include <kernel/unit.h>
 #include <kernel/pool.h>
 
@@ -48,8 +47,8 @@ int average_score_of_age(int age, int a)
   int sum = 0, count = 0;
 
   for (f = factions; f; f = f->next) {
-    if (!is_monsters(f) && f->race != new_race[RC_TEMPLATE] && f->age <= age + a
-      && f->age >= age - a) {
+      if (!is_monsters(f) && f->age <= age + a
+          && f->age >= age - a && f->race != get_race(RC_TEMPLATE)) {
       sum += f->score;
       count++;
     }
@@ -107,8 +106,8 @@ void score(void)
       int i;
       faction *f = u->faction;
 
-      if (f == NULL || u_race(u) == new_race[RC_SPELL]
-        || u_race(u) == new_race[RC_BIRTHDAYDRAGON]) {
+      if (f == NULL || u_race(u) == get_race(RC_SPELL)
+          || u_race(u) == get_race(RC_BIRTHDAYDRAGON)) {
         continue;
       }
 
@@ -145,7 +144,7 @@ void score(void)
 
   for (fc = factions; fc; fc = fc->next) {
     fc->score = fc->score / 5;
-    if (!is_monsters(fc) && fc->race != new_race[RC_TEMPLATE]) {
+    if (!is_monsters(fc) && fc->race != get_race(RC_TEMPLATE)) {
       allscores += fc->score;
     }
   }

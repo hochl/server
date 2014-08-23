@@ -61,6 +61,46 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 /** external variables **/
 race *races;
 int num_races = 0;
+static int cache_breaker;
+
+static const char *racenames[MAXRACES] = {
+    "dwarf", "elf", NULL, "goblin", "human", "troll", "demon", "insect",
+    "halfling", "cat", "aquarian", "orc", "snotling", "undead", "illusion",
+    "youngdragon", "dragon", "wyrm", "ent", "catdragon", "dracoid",
+    "special", "spell", "irongolem", "stonegolem", "shadowdemon",
+    "shadowmaster", "mountainguard", "alp", "toad", "braineater", "peasant",
+    "wolf", NULL, NULL, NULL, NULL, "songdragon", NULL,
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL, NULL, "seaserpent",
+    "shadowknight", "centaur", "skeleton", "skeletonlord", "zombie",
+    "juju-zombie", "ghoul", "ghast", "museumghost", "gnome", "template",
+    "clone"
+};
+
+static race * race_cache[MAXRACES];
+
+struct race *get_race(race_t rt) {
+    static int cache = -1;
+    const char * name;
+    
+    assert(rt < MAXRACES);
+    name = racenames[rt];
+    if (!name) {
+        return 0;
+    }
+    if (cache_breaker != cache) {
+        cache = cache_breaker;
+        memset(race_cache, 0, sizeof(race_cache));
+        return race_cache[rt] = rc_get_or_create(name);
+    } else {
+        race * result = race_cache[rt];
+        if (!result) {
+            result = race_cache[rt] = rc_get_or_create(name);
+        }
+        return result;
+    }
+    return 0;
+}
 
 race_list *get_familiarraces(void)
 {
@@ -98,59 +138,62 @@ void racelist_insert(struct race_list **rl, const struct race *r)
   *rl = rl2;
 }
 
-race *rc_new(const char *zName)
-{
-  char zBuffer[80];
-  race *rc = (race *)calloc(sizeof(race), 1);
-
-  rc->hitpoints = 1;
-  if (strchr(zName, ' ') != NULL) {
-    log_error("race '%s' has an invalid name. remove spaces\n", zName);
-    assert(strchr(zName, ' ') == NULL);
-  }
-  strcpy(zBuffer, zName);
-  rc->_name[0] = _strdup(zBuffer);
-  sprintf(zBuffer, "%s_p", zName);
-  rc->_name[1] = _strdup(zBuffer);
-  sprintf(zBuffer, "%s_d", zName);
-  rc->_name[2] = _strdup(zBuffer);
-  sprintf(zBuffer, "%s_x", zName);
-  rc->_name[3] = _strdup(zBuffer);
-  rc->precombatspell = NULL;
-
-  rc->attack[0].type = AT_COMBATSPELL;
-  rc->attack[1].type = AT_NONE;
-  return rc;
+void free_races(void) {
+    while (races) {
+        race * rc = races->next;
+        free(races);
+        races =rc;
+    }
 }
 
-race *rc_add(race * rc)
-{
-  rc->index = num_races++;
-  rc->next = races;
-  return races = rc;
-}
-
-static const char *racealias[][2] = {
-  {"uruk", "orc"},              /* there was a time when the orc race was called uruk (and there were other orcs). That was really confusing */
-  {"skeletton lord", "skeleton lord"},  /* we once had a typo here. it is fixed */
-  {NULL, NULL}
-};
-
-race *rc_find(const char *name)
+static race *rc_find_i(const char *name)
 {
   const char *rname = name;
   race *rc = races;
-  int i;
 
-  for (i = 0; racealias[i][0]; ++i) {
-    if (strcmp(racealias[i][0], name) == 0) {
-      rname = racealias[i][1];
-      break;
-    }
+  while (rc && !strcmp(rname, rc->_name[0]) == 0) {
+      rc = rc->next;
   }
-  while (rc && !strcmp(rname, rc->_name[0]) == 0)
-    rc = rc->next;
   return rc;
+}
+
+const race * rc_find(const char *name) {
+    return rc_find_i(name);
+}
+
+race *rc_get_or_create(const char *zName)
+{
+    race *rc;
+
+    assert(zName);
+    rc = rc_find_i(zName);
+    if (!rc) {
+        char zBuffer[80]; 
+
+        rc = (race *)calloc(sizeof(race), 1);
+        rc->hitpoints = 1;
+        if (strchr(zName, ' ') != NULL) {
+            log_error("race '%s' has an invalid name. remove spaces\n", zName);
+            assert(strchr(zName, ' ') == NULL);
+        }
+        strcpy(zBuffer, zName);
+        rc->_name[0] = _strdup(zBuffer);
+        sprintf(zBuffer, "%s_p", zName);
+        rc->_name[1] = _strdup(zBuffer);
+        sprintf(zBuffer, "%s_d", zName);
+        rc->_name[2] = _strdup(zBuffer);
+        sprintf(zBuffer, "%s_x", zName);
+        rc->_name[3] = _strdup(zBuffer);
+        rc->precombatspell = NULL;
+
+        rc->attack[0].type = AT_COMBATSPELL;
+        rc->attack[1].type = AT_NONE;
+        rc->index = num_races++;
+        ++cache_breaker;
+        rc->next = races;
+        return races = rc;
+    }
+    return rc;
 }
 
 /** dragon movement **/
@@ -182,12 +225,6 @@ extern void add_raceprefix(const char *prefix)
 
 /*                      "den Zwergen", "Halblingsparteien" */
 
-void set_show_item(faction * f, item_t i)
-{
-  attrib *a = a_add(&f->attribs, a_new(&at_showitem));
-  a->data.v = (void *)olditemtype[i];
-}
-
 bool r_insectstalled(const region * r)
 {
   return fval(r->terrain, ARCTIC_REGION);
@@ -212,7 +249,7 @@ const char *raceprefix(const unit * u)
 
 const char *racename(const struct locale *loc, const unit * u, const race * rc)
 {
-  const char *prefix = raceprefix(u);
+  const char *str, *prefix = raceprefix(u);
 
   if (prefix != NULL) {
     static char lbuf[80];
@@ -234,7 +271,8 @@ const char *racename(const struct locale *loc, const unit * u, const race * rc)
 
     return lbuf;
   }
-  return LOC(loc, rc_name(rc, u->number != 1));
+  str = LOC(loc, rc_name(rc, u->number != 1));
+  return str ? str : rc->_name[0];
 }
 
 int
@@ -288,7 +326,7 @@ variant read_race_reference(struct storage *store)
     result.v = NULL;
     return result;
   } else {
-    result.v = rc_find(zName);
+    result.v = rc_find_i(zName);
   }
   assert(result.v != NULL);
   return result;

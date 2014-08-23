@@ -25,9 +25,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 /* modules include */
 #include "score.h"
 
-/* attributes include */
-#include <attributes/giveitem.h>
-
 /* items include */
 #include <items/demonseye.h>
 
@@ -36,7 +33,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <kernel/faction.h>
 #include <kernel/item.h>
 #include <kernel/magic.h>
-#include <kernel/message.h>
+#include <kernel/messages.h>
 #include <kernel/move.h>
 #include <kernel/order.h>
 #include <kernel/plane.h>
@@ -44,7 +41,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <kernel/race.h>
 #include <kernel/region.h>
 #include <kernel/reports.h>
-#include <kernel/skill.h>
 #include <kernel/terrain.h>
 #include <kernel/terrainid.h>
 #include <kernel/unit.h>
@@ -137,7 +133,7 @@ enter_arena(unit * u, const item_type * itype, int amount, order * ord)
     return -1;
   if (u->number != 1 && enter_fail(u))
     return -1;
-  if (get_pooled(u, oldresourcetype[R_SILVER], GET_DEFAULT, fee) < fee
+  if (get_pooled(u, get_resourcetype(R_SILVER), GET_DEFAULT, fee) < fee
     && enter_fail(u))
     return -1;
   for (sk = 0; sk != MAXSKILLS; ++sk) {
@@ -170,7 +166,7 @@ enter_arena(unit * u, const item_type * itype, int amount, order * ord)
   ADDMSG(&u->faction->msgs, msg_message("arena_enter_fail", "region unit",
       u->region, u));
   use_pooled(u, itype->rtype, GET_SLACK | GET_RESERVE, 1);
-  use_pooled(u, oldresourcetype[R_SILVER], GET_DEFAULT, fee);
+  use_pooled(u, get_resourcetype(R_SILVER), GET_DEFAULT, fee);
   set_money(u, 109);
   fset(u, UFL_ANON_FACTION);
   move_unit(u, start_region[rng_int() % 6], NULL);
@@ -345,9 +341,9 @@ static void guardian_faction(plane * pl, int id)
     f->passw = _strdup(itoa36(rng_int()));
     set_email(&f->email, "igjarjuk@eressea.de");
     f->name = _strdup("Igjarjuks Kundschafter");
-    f->race = new_race[RC_ILLUSION];
+    f->race = get_race(RC_ILLUSION);
     f->age = turn;
-    f->locale = find_locale("de");
+    f->locale = get_locale("de");
     f->options =
       want(O_COMPRESS) | want(O_REPORT) | want(O_COMPUTER) | want(O_ADRESSEN) |
       want(O_DEBUG);
@@ -356,7 +352,7 @@ static void guardian_faction(plane * pl, int id)
     addlist(&factions, f);
     fhash(f);
   }
-  if (f->race != new_race[RC_ILLUSION]) {
+  if (f->race != get_race(RC_ILLUSION)) {
     assert(!"guardian id vergeben");
     exit(0);
   }
@@ -372,9 +368,9 @@ static void guardian_faction(plane * pl, int id)
       }
       if (u)
         continue;
-      u = createunit(r, f, 1, new_race[RC_GOBLIN]);
+      u = createunit(r, f, 1, get_race(RC_GOBLIN));
       set_string(&u->name, "Igjarjuks Auge");
-      set_item(u, I_RING_OF_INVISIBILITY, 1);
+      i_change(&u->items, it_find("roi"), 1);
       set_order(&u->thisorder, NULL);
       fset(u, UFL_ANON_FACTION);
       set_money(u, 1000);

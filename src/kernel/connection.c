@@ -69,7 +69,7 @@ void free_borders(void)
   }
 }
 
-connection *find_border(unsigned int id)
+connection *find_border(int id)
 {
   int key;
   for (key = 0; key != BORDER_MAXHASH; key++) {
@@ -87,16 +87,41 @@ connection *find_border(unsigned int id)
 
 int resolve_borderid(variant id, void *addr)
 {
-  int result = 0;
-  connection *b = NULL;
-  if (id.i != 0) {
-    b = find_border(id.i);
-    if (b == NULL) {
-      result = -1;
+    int result = 0;
+    connection *b = NULL;
+    if (id.i != 0) {
+        b = find_border(id.i);
+        if (b == NULL) {
+            result = -1;
+        }
     }
-  }
-  *(connection **) addr = b;
-  return result;
+    *(connection **)addr = b;
+    return result;
+}
+
+static void walk_i(region *r, connection *b, void(*cb)(connection *, void *), void *data) {
+    for (; b; b = b->nexthash) {
+        if (b->from == r || b->to == r) {
+            connection *bn;
+            for (bn = b; bn; bn = bn->next) {
+                cb(b, data);
+            }
+        }
+    }
+}
+
+void walk_connections(region *r, void(*cb)(connection *, void *), void *data) {
+    int key = reg_hashkey(r);
+    int d;
+
+    walk_i(r, borders[key], cb, data);
+    for (d = 0; d != MAXDIRECTIONS; ++d) {
+        region *rn = r_connect(r, d);
+        int k = reg_hashkey(rn);
+        if (k < key) {
+            walk_i(r, borders[k], cb, data);
+        }
+    }
 }
 
 static connection **get_borders_i(const region * r1, const region * r2)
@@ -459,58 +484,6 @@ border_type bt_illusionwall = {
 };
 
 /***
- * special quest door
- ***/
-
-bool b_blockquestportal(const connection * b, const unit * u,
-  const region * r)
-{
-  if (b->data.i > 0)
-    return true;
-  return false;
-}
-
-static const char *b_namequestportal(const connection * b, const region * r,
-  const struct faction *f, int gflags)
-{
-  const char *bname;
-  int lock = b->data.i;
-  unused_arg(b);
-  unused_arg(r);
-
-  if (gflags & GF_ARTICLE) {
-    if (lock > 0) {
-      bname = "a_gate_locked";
-    } else {
-      bname = "a_gate_open";
-    }
-  } else {
-    if (lock > 0) {
-      bname = "gate_locked";
-    } else {
-      bname = "gate_open";
-    }
-  }
-  if (gflags & GF_PURE)
-    return bname;
-  return LOC(f->locale, mkname("border", bname));
-}
-
-border_type bt_questportal = {
-  "questportal", VAR_INT,
-  b_opaque,
-  NULL,                         /* init */
-  NULL,                         /* destroy */
-  b_read,                       /* read */
-  b_write,                      /* write */
-  b_blockquestportal,           /* block */
-  b_namequestportal,            /* name */
-  b_rvisible,                   /* rvisible */
-  b_fvisible,                   /* fvisible */
-  b_uvisible,                   /* uvisible */
-};
-
-/***
  * roads. meant to replace the old at_road or r->road attribute
  ***/
 
@@ -625,7 +598,7 @@ void write_borders(struct storage *store)
 int read_borders(struct storage *store)
 {
   for (;;) {
-    unsigned int bid = 0;
+    int bid = 0;
     char zText[32];
     connection *b;
     region *from, *to;
@@ -634,7 +607,7 @@ int read_borders(struct storage *store)
     READ_TOK(store, zText, sizeof(zText));
     if (!strcmp(zText, "end"))
       break;
-    READ_UINT(store, &bid);
+    READ_INT(store, &bid);
     if (global.data_version < UIDHASH_VERSION) {
       int fx, fy, tx, ty;
       READ_INT(store, &fx);
@@ -644,9 +617,9 @@ int read_borders(struct storage *store)
       from = findregion(fx, fy);
       to = findregion(tx, ty);
     } else {
-      unsigned int fid, tid;
-      READ_UINT(store, &fid);
-      READ_UINT(store, &tid);
+      int fid, tid;
+      READ_INT(store, &fid);
+      READ_INT(store, &tid);
       from = findregionbyid(fid);
       to = findregionbyid(tid);
     }

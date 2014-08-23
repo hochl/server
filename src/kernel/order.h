@@ -16,6 +16,8 @@
 extern "C" {
 #endif
 
+#include "keyword.h"
+
 /* Encapsulation of an order
  *
  * This structure contains one order given by a unit. These used to be
@@ -48,16 +50,16 @@ extern "C" {
   extern void push_order(struct order **olist, struct order *ord);
 
 /* access functions for orders */
-  extern keyword_t get_keyword(const order * ord);
-  extern void set_order(order ** destp, order * src);
-  extern char *getcommand(const order * ord);
-  extern bool is_persistent(const order * ord);
-  extern bool is_exclusive(const order * ord);
-  extern bool is_repeated(const order * ord);
-  extern bool is_long(const order * ord);
+  keyword_t getkeyword(const order * ord);
+  void set_order(order ** destp, order * src);
+  char* get_command(const order *ord, char *buffer, size_t size);
+  bool is_persistent(const order * ord);
+  bool is_exclusive(const order * ord);
+  bool is_repeated(const order * ord);
+  bool is_long(const order * ord);
 
-  extern char *write_order(const order * ord, char *buffer, size_t size);
-  extern void init_tokens(const struct order *ord);     /* initialize token parsing */
+  char *write_order(const order * ord, char *buffer, size_t size);
+  keyword_t init_order(const struct order *ord);
 
 #ifdef __cplusplus
 }

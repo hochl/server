@@ -73,73 +73,6 @@ typedef struct ursprung {
   int x, y;
 } ursprung;
 
-/* ----------------- Befehle ----------------------------------- */
-
-typedef enum {
-  K_KOMMENTAR,
-  K_BANNER,
-  K_WORK,
-  K_ATTACK,
-  K_STEAL,
-  K_BESIEGE,
-  K_NAME,
-  K_USE,
-  K_DISPLAY,
-  K_ENTER,
-  K_GUARD,
-  K_MAIL,
-  K_END,
-  K_DRIVE,
-  K_NUMBER,
-  K_FOLLOW,
-  K_RESEARCH,
-  K_GIVE,
-  K_ALLY,
-  K_STATUS,
-  K_COMBATSPELL,
-  K_BUY,
-  K_CONTACT,
-  K_TEACH,
-  K_STUDY,
-  K_MAKE,
-  K_MOVE,
-  K_PASSWORD,
-  K_RECRUIT,
-  K_RESERVE,
-  K_ROUTE,
-  K_SABOTAGE,
-  K_SEND,
-  K_SPY,
-  K_QUIT,
-  K_SETSTEALTH,
-  K_TRANSPORT,
-  K_TAX,
-  K_ENTERTAIN,
-  K_SELL,
-  K_LEAVE,
-  K_FORGET,
-  K_CAST,
-  K_RESHOW,
-  K_DESTROY,
-  K_BREED,
-  K_DEFAULT,
-  K_URSPRUNG,
-  K_EMAIL,
-  K_PIRACY,
-  K_GROUP,
-  K_SORT,
-  K_GM,                         /* perform GM commands */
-  K_INFO,                       /* set player-info */
-  K_PREFIX,
-  K_PLANT,
-  K_ALLIANCE,
-  K_CLAIM,
-  K_PROMOTION,
-  K_PAY,
-  MAXKEYWORDS,
-  NOKEYWORD = -1
-} keyword_t;
-
 /* ------------------ Status von Einheiten --------------------- */
 
 typedef unsigned char status_t;
@@ -190,9 +123,6 @@ typedef enum {
   P_HELP,
   P_FOREIGN,
   P_AURA,
-  P_FOR,
-  P_AID,
-  P_MERCY,
   P_AFTER,
   P_BEFORE,
   P_NUMBER,
@@ -201,9 +131,6 @@ typedef enum {
   P_GROUP,
   P_FACTIONSTEALTH,
   P_TREES,
-  P_XEPOTION,
-  P_XEBALLOON,
-  P_XELAEN,
   P_ALLIANCE,
   MAXPARAMS,
   NOPARAM = -1
@@ -250,123 +177,8 @@ enum {
   O_BZIP2,                      /* 1024 - compress as bzip2 */
   O_SCORE,                      /* 2048 - punkte anzeigen? */
   O_SHOWSKCHANGE,               /* 4096 - Skillveränderungen anzeigen? */
-  O_XML,                        /* 8192 - XML report versenden */
   MAXOPTIONS
 };
-
-/* ------------------ Talente ---------------------------------- */
-
-typedef enum {
-  SK_ALCHEMY,
-  SK_CROSSBOW,
-  SK_MINING,
-  SK_LONGBOW,
-  SK_BUILDING,
-  SK_TRADE,
-  SK_LUMBERJACK,
-  SK_CATAPULT,
-  SK_HERBALISM,
-  SK_MAGIC,
-  SK_HORSE_TRAINING,            /* 10 */
-  SK_RIDING,
-  SK_ARMORER,
-  SK_SHIPBUILDING,
-  SK_MELEE,
-  SK_SAILING,
-  SK_SPEAR,
-  SK_SPY,
-  SK_QUARRYING,
-  SK_ROAD_BUILDING,
-  SK_TACTICS,                   /* 20 */
-  SK_STEALTH,
-  SK_ENTERTAINMENT,
-  SK_WEAPONSMITH,
-  SK_CARTMAKER,
-  SK_PERCEPTION,
-  SK_TAXING,
-  SK_STAMINA,
-  SK_WEAPONLESS,
-  MAXSKILLS,
-  NOSKILL = -1
-} skill_t;
-
-/* ------------- Typ von Einheiten ----------------------------- */
-
-typedef enum {
-  RC_DWARF,                     /* 0 - Zwerg */
-  RC_ELF,
-  RC_GOBLIN = 3,
-  RC_HUMAN,
-
-  RC_TROLL,
-  RC_DAEMON,
-  RC_INSECT,
-  RC_HALFLING,
-  RC_CAT,
-
-  RC_AQUARIAN,
-  RC_ORC,
-  RC_SNOTLING,
-  RC_UNDEAD,
-  RC_ILLUSION,
-
-  RC_FIREDRAGON,
-  RC_DRAGON,
-  RC_WYRM,
-  RC_TREEMAN,
-  RC_BIRTHDAYDRAGON,
-
-  RC_DRACOID,
-  RC_SPECIAL,
-  RC_SPELL,
-  RC_IRONGOLEM,
-  RC_STONEGOLEM,
-
-  RC_SHADOW,
-  RC_SHADOWLORD,
-  RC_IRONKEEPER,
-  RC_ALP,
-  RC_TOAD,
-
-  RC_HIRNTOETER,
-  RC_PEASANT,
-  RC_WOLF = 32,
-
-  RC_SONGDRAGON = 37,
-
-  RC_SEASERPENT = 51,
-  RC_SHADOWKNIGHT,
-  RC_CENTAUR,
-  RC_SKELETON,
-
-  RC_SKELETON_LORD,
-  RC_ZOMBIE,
-  RC_ZOMBIE_LORD,
-  RC_GHOUL,
-  RC_GHOUL_LORD,
-
-  RC_MUS_SPIRIT,
-  RC_GNOME,
-  RC_TEMPLATE,
-  RC_CLONE,
-
-  MAXRACES,
-  NORACE = -1
-} race_t;
-
-/* Richtungen */
-typedef enum {
-  D_NORTHWEST,
-  D_NORTHEAST,
-  D_EAST,
-  D_SOUTHEAST,
-  D_SOUTHWEST,
-  D_WEST,
-  MAXDIRECTIONS,
-  D_PAUSE,
-  D_SPECIAL,
-  NODIRECTION = -1
-} direction_t;
 
 typedef enum {
   M_GRAY = 0,                 /* Gray */

@@ -73,10 +73,12 @@ extern "C" {
 
   extern struct quicklist *buildingtypes;
 
-  extern building_type *bt_find(const char *name);
-  extern void register_buildings(void);
-  extern void bt_register(struct building_type *type);
-  extern int bt_effsize(const struct building_type *btype,
+  building_type *bt_get_or_create(const char *name);
+  const building_type *bt_find(const char *name);
+  void free_buildingtypes(void);
+  void register_buildings(void);
+  void bt_register(struct building_type *type);
+  int bt_effsize(const struct building_type *btype,
     const struct building *b, int bsize);
 
 /* buildingt => building_type
@@ -123,8 +125,8 @@ extern "C" {
   extern int buildingcapacity(const struct building *b);
   extern struct building *new_building(const struct building_type *typ,
     struct region *r, const struct locale *lang);
-  void build_building(struct unit *u, const struct building_type *typ, int size,
-    struct order *ord);
+  int build_building(struct unit *u, const struct building_type *typ, 
+                      int id, int size, struct order *ord);
 
 /* Alte Gebäudetypen: */
 
@@ -156,18 +158,10 @@ extern "C" {
   extern void building_update_owner(struct building * bld);
 
   extern struct attrib_type at_building_action;
-  void building_addaction(struct building *b, const char *fname,
-    const char *param);
 
 #ifdef WDW_PYRAMID
   extern int wdw_pyramid_level(const struct building *b);
 #endif
-
-  typedef struct building_action {
-    building *b;
-    char *fname;
-    char *param;
-  } building_action;
 
   extern const char *buildingname(const struct building *b);
 

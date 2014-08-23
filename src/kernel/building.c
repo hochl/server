@@ -26,6 +26,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "curse.h"              /* für C_NOCOST */
 #include "unit.h"
 #include "faction.h"
+#include "race.h"
 #include "region.h"
 #include "skill.h"
 #include "magic.h"
@@ -55,74 +56,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 /* attributes includes */
 #include <attributes/matmod.h>
 
-static const char *NULLSTRING = "(null)";
-
-static void lc_init(struct attrib *a)
-{
-  a->data.v = calloc(1, sizeof(building_action));
-}
-
-static void lc_done(struct attrib *a)
-{
-  building_action *data = (building_action *) a->data.v;
-  if (data->fname)
-    free(data->fname);
-  if (data->param)
-    free(data->param);
-  free(data);
-}
-
-static void
-lc_write(const struct attrib *a, const void *owner, struct storage *store)
-{
-  building_action *data = (building_action *) a->data.v;
-  const char *fname = data->fname;
-  const char *fparam = data->param;
-  building *b = data->b;
-
-  write_building_reference(b, store);
-  WRITE_TOK(store, fname);
-  WRITE_TOK(store, fparam ? fparam : NULLSTRING);
-}
-
-static int lc_read(struct attrib *a, void *owner, struct storage *store)
-{
-  char name[NAMESIZE];
-  building_action *data = (building_action *) a->data.v;
-  int result =
-    read_reference(&data->b, store, read_building_reference, resolve_building);
-  if (global.data_version < UNICODE_VERSION) {
-    READ_STR(store, name, sizeof(name));
-  } else {
-    READ_TOK(store, name, sizeof(name));
-  }
-  data->fname = _strdup(name);
-  if (global.data_version >= BACTION_VERSION) {
-    if (global.data_version < UNICODE_VERSION) {
-      READ_STR(store, name, sizeof(name));
-    } else {
-      READ_TOK(store, name, sizeof(name));
-    }
-    if (strcmp(name, NULLSTRING) == 0)
-      data->param = 0;
-    else
-      data->param = _strdup(name);
-  } else {
-    data->param = 0;
-  }
-  if (result == 0 && !data->b) {
-    return AT_READ_FAIL;
-  }
-  return AT_READ_OK;
-}
-
-attrib_type at_building_action = {
-  "lcbuilding",
-  lc_init, lc_done,
-  NULL,
-  lc_write, lc_read
-};
-
 typedef struct building_typelist {
   struct building_typelist *next;
   building_type *type;
@@ -131,7 +64,7 @@ typedef struct building_typelist {
 quicklist *buildingtypes = NULL;
 
 /* Returns a building type for the (internal) name */
-building_type *bt_find(const char *name)
+static building_type *bt_find_i(const char *name)
 {
   quicklist *ql;
   int qi;
@@ -146,12 +79,37 @@ building_type *bt_find(const char *name)
   return NULL;
 }
 
+const building_type *bt_find(const char *name)
+{
+    return bt_find_i(name);
+}
+
 void bt_register(building_type * type)
 {
   if (type->init) {
     type->init(type);
   }
   ql_push(&buildingtypes, (void *)type);
+}
+
+void free_buildingtypes(void) {
+    ql_foreach(buildingtypes, free);
+    ql_free(buildingtypes);
+    buildingtypes = 0;
+}
+
+building_type *bt_get_or_create(const char *name)
+{
+  if (name != NULL) {
+    building_type *btype = bt_find_i(name);
+    if (btype == NULL) {
+      btype = calloc(sizeof(building_type), 1);
+      btype->_name = _strdup(name);
+      bt_register(btype);
+    }
+    return btype;
+  }
+  return NULL;
 }
 
 int buildingcapacity(const building * b)
@@ -178,29 +136,26 @@ attrib_type at_building_generic_type = {
 /* Returns the (internal) name for a building of given size and type. Especially, returns the correct
  * name if it depends on the size (as for Eressea castles).
  */
-const char *buildingtype(const building_type * btype, const building * b,
-  int bsize)
+const char *buildingtype(const building_type * btype, const building * b, int bsize)
 {
-  const char *s = NULL;
-  static bool init_generic = false;
-  static const struct building_type *bt_generic;
+    const char *s;
+    assert(btype);
 
-  if (!init_generic) {
-    init_generic = true;
-    bt_generic = bt_find("generic");
-  }
-
-  if (btype == bt_generic) {
-    const attrib *a = a_find(b->attribs, &at_building_generic_type);
-    if (a)
-      s = (const char *)a->data.v;
-  }
-
-  if (btype->name)
-    s = btype->name(btype, b, bsize);
-  if (s == NULL)
     s = btype->_name;
-  return s;
+    if (btype->name) {
+        s = btype->name(btype, b, bsize);
+    }
+    if (b && b->attribs) {
+        const struct building_type *bt_generic = bt_find("generic");
+
+        if (btype == bt_generic) {
+            const attrib *a = a_find(b->attribs, &at_building_generic_type);
+            if (a) {
+                s = (const char *)a->data.v;
+            }
+        }
+    }
+    return s;
 }
 
 #define BMAXHASH 7919
@@ -256,7 +211,7 @@ static int sm_smithy(const unit * u, const region * r, skill_t sk, int value)
 
 static int mm_smithy(const unit * u, const resource_type * rtype, int value)
 {                               /* material-mod */
-  if (rtype == oldresourcetype[R_IRON])
+  if (rtype == get_resourcetype(R_IRON))
     return value * 2;
   return value;
 }
@@ -463,7 +418,6 @@ building *new_building(const struct building_type * btype, region * r,
     init_lighthouse = true;
   }
 
-  b->flags = BLD_WORKING | BLD_MAINTAINED;
   b->no = newcontainerid();
   bhash(b);
 
@@ -501,50 +455,45 @@ static building *deleted_buildings;
  */
 void remove_building(building ** blist, building * b)
 {
-  unit *u;
-  static const struct building_type *bt_caravan, *bt_dam, *bt_tunnel;
-  static bool init = false;
+    unit *u;
+    const struct building_type *bt_caravan, *bt_dam, *bt_tunnel;
 
-  if (!init) {
-    init = true;
+    assert(bfindhash(b->no));
+
     bt_caravan = bt_find("caravan");
     bt_dam = bt_find("dam");
     bt_tunnel = bt_find("tunnel");
-  }
 
-  assert(bfindhash(b->no));
+    handle_event(b->attribs, "destroy", b);
+    for (u = b->region->units; u; u = u->next) {
+        if (u->building == b) leave(u, true);
+    }
 
-  handle_event(b->attribs, "destroy", b);
-  for (u = b->region->units; u; u = u->next) {
-    if (u->building == b)
-      leave(u, true);
-  }
-
-  b->size = 0;
-  update_lighthouse(b);
-  bunhash(b);
+    b->size = 0;
+    update_lighthouse(b);
+    bunhash(b);
 
   /* Falls Karawanserei, Damm oder Tunnel einstürzen, wird die schon
    * gebaute Straße zur Hälfte vernichtet */
-  if (b->type == bt_caravan || b->type == bt_dam || b->type == bt_tunnel) {
-    region *r = b->region;
-    int d;
-    for (d = 0; d != MAXDIRECTIONS; ++d) {
-      direction_t dir = (direction_t)d;
-      if (rroad(r, dir) > 0) {
-        rsetroad(r, dir, rroad(r, dir) / 2);
-      }
+    if (b->type == bt_caravan || b->type == bt_dam || b->type == bt_tunnel) {
+        region *r = b->region;
+        int d;
+        for (d = 0; d != MAXDIRECTIONS; ++d) {
+            direction_t dir = (direction_t)d;
+            if (rroad(r, dir) > 0) {
+                rsetroad(r, dir, rroad(r, dir) / 2);
+            }
+        }
     }
-  }
-
-  /* Stattdessen nur aus Liste entfernen, aber im Speicher halten. */
-  while (*blist && *blist != b) {
-    blist = &(*blist)->next;
-  }
-  *blist = b->next;
-  b->region = NULL;
-  b->next = deleted_buildings;
-  deleted_buildings = b;
+    
+    /* Stattdessen nur aus Liste entfernen, aber im Speicher halten. */
+    while (*blist && *blist != b) {
+        blist = &(*blist)->next;
+    }
+    *blist = b->next;
+    b->region = NULL;
+    b->next = deleted_buildings;
+    deleted_buildings = b;
 }
 
 void free_building(building * b)
@@ -595,7 +544,7 @@ int bt_effsize(const building_type * btype, const building * b, int bsize)
   if (b && get_param_int(global.parameters, "rules.dwarf_castles", 0)
     && strcmp(btype->_name, "castle") == 0) {
     unit *u = building_owner(b);
-    if (u && u->faction->race == new_race[RC_HALFLING]) {
+    if (u && u->faction->race == get_race(RC_HALFLING)) {
       i = bsize * 10 / 8;
     }
   }
@@ -637,7 +586,6 @@ void building_set_owner(struct unit * owner)
 static unit *building_owner_ex(const building * bld, const struct faction * last_owner)
 {
   unit *u, *heir = 0;
-
   /* Eigentümer tot oder kein Eigentümer vorhanden. Erste lebende Einheit
     * nehmen. */
   for (u = bld->region->units; u; u = u->next) {
@@ -653,11 +601,25 @@ static unit *building_owner_ex(const building * bld, const struct faction * last
       }
     }
   }
-  return heir;
+    if (!heir && check_param(global.parameters, "rules.region_owner_pay_building", bld->type->_name)) {
+        if (rule_region_owners()) {
+            u = building_owner(largestbuilding(bld->region, &cmp_taxes, false));
+        }
+        else {
+            u = building_owner(largestbuilding(bld->region, &cmp_wage, false));
+        }
+        if (u) {
+            heir = u;
+        }
+    }
+    return heir;
 }
 
 unit *building_owner(const building * bld)
 {
+  if (!bld) {
+		return NULL;
+	}
   unit *owner = bld->_owner;
   if (!owner || (owner->building!=bld || owner->number<=0)) {
     unit * heir = building_owner_ex(bld, owner?owner->faction:0);
@@ -683,17 +645,6 @@ void building_setname(building * self, const char *name)
     self->name = _strdup(name);
   else
     self->name = NULL;
-}
-
-void building_addaction(building * b, const char *fname, const char *param)
-{
-  attrib *a = a_add(&b->attribs, a_new(&at_building_action));
-  building_action *data = (building_action *) a->data.v;
-  data->b = b;
-  data->fname = _strdup(fname);
-  if (param) {
-    data->param = _strdup(param);
-  }
 }
 
 region *building_getregion(const building * b)

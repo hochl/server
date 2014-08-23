@@ -71,6 +71,20 @@
   </resource>
 
 <!-- museum items -->
+  <resource name="questkey1" appearance="key">
+    <!-- Key for an old quest. placeholder item -->
+    <item notlost="yes" weight="0" >
+      <function name="use" value="use_museumkey"/>
+    </item>
+  </resource>
+
+  <resource name="questkey2" appearance="key">
+    <!-- Key for an old quest. placeholder item -->
+    <item notlost="yes" weight="0" >
+      <function name="use" value="use_museumkey"/>
+    </item>
+  </resource>
+
   <resource name="museumexitticket">
     <!-- you get your stuff back when leaving the museum -->
     <item notlost="yes" weight="0">
@@ -112,16 +126,6 @@
     <item weight="0" score="0">
       <function name="use" value="enter_arena"/>
     </item>
-  </resource>
-
-  <resource name="questkey1" appearance="key">
-    <!-- Key for an old quest. placeholder item -->
-    <item notlost="yes" weight="0" />
-  </resource>
-
-  <resource name="questkey2" appearance="key">
-    <!-- Key for an old quest. placeholder item -->
-    <item notlost="yes" weight="0" />
   </resource>
 
   <resource name="jadee_ring" appearance="ring">

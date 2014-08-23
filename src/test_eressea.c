@@ -1,29 +1,13 @@
+#include <platform.h>
+#include <kernel/config.h>
 #include <CuTest.h>
 #include <stdio.h>
 #include <util/log.h>
 
-CuSuite *get_tests_suite(void);
-CuSuite *get_json_suite(void);
-CuSuite *get_economy_suite(void);
-CuSuite *get_laws_suite(void);
-CuSuite *get_market_suite(void);
-CuSuite *get_battle_suite(void);
-CuSuite *get_building_suite(void);
-CuSuite *get_curse_suite(void);
-CuSuite *get_equipment_suite(void);
-CuSuite *get_item_suite(void);
-CuSuite *get_magic_suite(void);
-CuSuite *get_move_suite(void);
-CuSuite *get_pool_suite(void);
-CuSuite *get_reports_suite(void);
-CuSuite *get_ship_suite(void);
-CuSuite *get_spellbook_suite(void);
-CuSuite *get_spell_suite(void);
-CuSuite *get_base36_suite(void);
-CuSuite *get_bsdstring_suite(void);
-CuSuite *get_functions_suite(void);
-CuSuite *get_umlaut_suite(void);
-CuSuite *get_ally_suite(void);
+
+#define ADD_TESTS(suite, name) \
+CuSuite *get_##name##_suite(void); \
+CuSuiteAddSuite(suite, get_##name##_suite())
 
 int RunAllTests(void)
 {
@@ -32,33 +16,44 @@ int RunAllTests(void)
   int flags = log_flags;
 
   log_flags = LOG_FLUSH | LOG_CPERROR;
+  kernel_init();
 
   /* self-test */
-  CuSuiteAddSuite(suite, get_tests_suite());
-  CuSuiteAddSuite(suite, get_json_suite());
+  ADD_TESTS(suite, tests);
+  ADD_TESTS(suite, callback);
+  ADD_TESTS(suite, json);
+  ADD_TESTS(suite, jsonconf);
+  ADD_TESTS(suite, direction);
+  ADD_TESTS(suite, skill);
+  ADD_TESTS(suite, keyword);
+  ADD_TESTS(suite, order);
   /* util */
-  CuSuiteAddSuite(suite, get_base36_suite());
-  CuSuiteAddSuite(suite, get_bsdstring_suite());
-  CuSuiteAddSuite(suite, get_functions_suite());
-  CuSuiteAddSuite(suite, get_umlaut_suite());
+  ADD_TESTS(suite, config);
+  ADD_TESTS(suite, base36);
+  ADD_TESTS(suite, bsdstring);
+  ADD_TESTS(suite, functions);
+  ADD_TESTS(suite, umlaut);
   /* kernel */
-  CuSuiteAddSuite(suite, get_pool_suite());
-  CuSuiteAddSuite(suite, get_curse_suite());
-  CuSuiteAddSuite(suite, get_equipment_suite());
-  CuSuiteAddSuite(suite, get_item_suite());
-  CuSuiteAddSuite(suite, get_magic_suite());
-  CuSuiteAddSuite(suite, get_move_suite());
-  CuSuiteAddSuite(suite, get_reports_suite());
-  CuSuiteAddSuite(suite, get_ship_suite());
-  CuSuiteAddSuite(suite, get_spellbook_suite());
-  CuSuiteAddSuite(suite, get_building_suite());
-  CuSuiteAddSuite(suite, get_spell_suite());
-  CuSuiteAddSuite(suite, get_battle_suite());
-  CuSuiteAddSuite(suite, get_ally_suite());
+  ADD_TESTS(suite, faction);
+  ADD_TESTS(suite, build);
+  ADD_TESTS(suite, pool);
+  ADD_TESTS(suite, curse);
+  ADD_TESTS(suite, equipment);
+  ADD_TESTS(suite, item);
+  ADD_TESTS(suite, magic);
+  ADD_TESTS(suite, move);
+  ADD_TESTS(suite, reports);
+  ADD_TESTS(suite, save);
+  ADD_TESTS(suite, ship);
+  ADD_TESTS(suite, spellbook);
+  ADD_TESTS(suite, building);
+  ADD_TESTS(suite, spell);
+  ADD_TESTS(suite, battle);
+  ADD_TESTS(suite, ally);
   /* gamecode */
-  CuSuiteAddSuite(suite, get_market_suite());
-  CuSuiteAddSuite(suite, get_laws_suite());
-  CuSuiteAddSuite(suite, get_economy_suite());
+  ADD_TESTS(suite, market);
+  ADD_TESTS(suite, laws);
+  ADD_TESTS(suite, economy);
 
   CuSuiteRun(suite);
   CuSuiteSummary(suite, output);
@@ -70,5 +65,6 @@ int RunAllTests(void)
 }
 
 int main(int argc, char ** argv) {
-  return RunAllTests();
+    log_stderr = 0;
+    return RunAllTests();
 }

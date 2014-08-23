@@ -25,9 +25,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <kernel/region.h>
 #include <kernel/faction.h>
 #include <kernel/unit.h>
-#include <kernel/skill.h>
 #include <kernel/curse.h>
-#include <kernel/message.h>
+#include <kernel/messages.h>
 #include <kernel/magic.h>
 #include <kernel/pool.h>
 

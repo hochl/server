@@ -18,10 +18,9 @@
 #include <kernel/curse.h>
 #include <kernel/faction.h>
 #include <kernel/magic.h>
-#include <kernel/message.h>
+#include <kernel/messages.h>
 #include <kernel/race.h>
 #include <kernel/region.h>
-#include <kernel/skill.h>
 #include <kernel/unit.h>
 
 /* util includes */
@@ -105,7 +104,7 @@ int sp_summon_alp(struct castorder *co)
   unit *mage = co->magician.u;
   int cast_level = co->level;
   spellparameter *pa = co->par;
-  const struct race *rc = new_race[RC_ALP];
+  const struct race *rc = get_race(RC_ALP);
   struct faction *f = get_monsters();
   struct message *msg;
 

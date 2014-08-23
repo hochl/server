@@ -38,22 +38,28 @@ int tolua_buildinglist_next(lua_State * L)
     return 0;                   /* no more values to return */
 }
 
-static int tolua_building_addaction(lua_State * L)
-{
-  building *self = (building *) tolua_tousertype(L, 1, 0);
-  const char *fname = tolua_tostring(L, 2, 0);
-  const char *param = tolua_tostring(L, 3, 0);
-
-  building_addaction(self, fname, param);
-
-  return 0;
-}
-
 static int tolua_building_get_objects(lua_State * L)
 {
   building *self = (building *) tolua_tousertype(L, 1, 0);
   tolua_pushusertype(L, (void *)&self->attribs, TOLUA_CAST "hashtable");
   return 1;
+}
+
+static int tolua_building_set_working(lua_State * L)
+{
+    building *self = (building *) tolua_tousertype(L, 1, 0);
+    bool flag = !!lua_toboolean(L, 2);
+    if (flag) self->flags |= BLD_WORKING;
+    else self->flags &= ~BLD_WORKING;
+    return 1;
+}
+
+static int tolua_building_get_working(lua_State * L)
+{
+    building *self = (building *) tolua_tousertype(L, 1, 0);
+    bool flag = (self->flags&BLD_WORKING)!=0;
+    lua_pushboolean(L, flag);
+    return 1;
 }
 
 static int tolua_building_get_region(lua_State * L)
@@ -236,13 +242,13 @@ void tolua_building_open(lua_State * L)
         tolua_building_set_region);
       tolua_variable(L, TOLUA_CAST "size", tolua_building_get_size,
         tolua_building_set_size);
-      tolua_function(L, TOLUA_CAST "add_action", tolua_building_addaction);
       tolua_function(L, TOLUA_CAST "get_typename", tolua_building_get_typename);
 #ifdef TODO
       .property("type", &building_gettype)
         .def_readwrite("size", &building::size)
 #endif
-        tolua_variable(L, TOLUA_CAST "objects", tolua_building_get_objects, 0);
+      tolua_variable(L, TOLUA_CAST "objects", tolua_building_get_objects, 0);
+      tolua_variable(L, TOLUA_CAST "working", tolua_building_get_working, tolua_building_set_working);
 
     }
     tolua_endmodule(L);
