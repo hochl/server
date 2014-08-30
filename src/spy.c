@@ -20,14 +20,15 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <kernel/config.h>
 #include "spy.h"
 #include "laws.h"
+#include "stealth.h"
+#include "move.h"
+#include "reports.h"
 
 /* kernel includes */
-#include <kernel/reports.h>
 #include <kernel/item.h>
 #include <kernel/faction.h>
 #include <kernel/magic.h>
 #include <kernel/messages.h>
-#include <kernel/move.h>
 #include <kernel/order.h>
 #include <kernel/race.h>
 #include <kernel/region.h>
@@ -76,7 +77,7 @@ void spy_message(int spy, const unit * u, const unit * target)
       /* true faction */
       ADDMSG(&u->faction->msgs, msg_message("spyreport_faction",
           "target faction", target, target->faction));
-      ql_set_insert(&u->faction->seen_factions, target->faction);
+      add_seen_faction(u->faction, target->faction);
     }
   }
   if (spy > 0) {

@@ -22,14 +22,16 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <kernel/types.h>
 #include "economy.h"
 
+#include "alchemy.h"
 #include "direction.h"
 #include "give.h"
 #include "laws.h"
 #include "randenc.h"
 #include "spy.h"
+#include "move.h"
+#include "reports.h"
 
 /* kernel includes */
-#include <kernel/alchemy.h>
 #include <kernel/building.h>
 #include <kernel/calendar.h>
 #include <kernel/curse.h>
@@ -38,13 +40,11 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <kernel/item.h>
 #include <kernel/magic.h>
 #include <kernel/messages.h>
-#include <kernel/move.h>
 #include <kernel/order.h>
 #include <kernel/plane.h>
 #include <kernel/pool.h>
 #include <kernel/race.h>
 #include <kernel/region.h>
-#include <kernel/reports.h>
 #include <kernel/resources.h>
 #include <kernel/ship.h>
 #include <kernel/terrain.h>
@@ -259,7 +259,7 @@ static void add_recruits(unit * u, int number, int wanted)
         }
 
         strlcpy(equipment, "new_", sizeof(equipment));
-        strlcat(equipment, u_race(u)->_name[0], sizeof(equipment));
+        strlcat(equipment, u_race(u)->_name, sizeof(equipment));
         strlcat(equipment, "_unit", sizeof(equipment));
         equip_unit(unew, get_equipment(equipment));
 
@@ -2766,7 +2766,7 @@ static void breed_cmd(unit * u, struct order *ord)
     (void)init_order(ord);
     s = getstrtoken();
 
-    m = atoi((const char *)s);
+    m = s ? atoi((const char *)s) : 0;
     if (m != 0) {
         /* first came a want-paramter */
         s = getstrtoken();
@@ -2775,7 +2775,7 @@ static void breed_cmd(unit * u, struct order *ord)
         m = INT_MAX;
     }
 
-    if (!s[0]) {
+    if (!s || !s[0]) {
         p = P_ANY;
     }
     else {

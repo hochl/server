@@ -40,17 +40,16 @@
 #include <kernel/faction.h>
 #include <kernel/item.h>
 #include <kernel/messages.h>
-#include <kernel/move.h>
-#include <kernel/names.h>
 #include <kernel/order.h>
 #include <kernel/pathfinder.h>
 #include <kernel/pool.h>
 #include <kernel/race.h>
 #include <kernel/region.h>
-#include <kernel/reports.h>
 #include <kernel/terrain.h>
 #include <kernel/terrainid.h>
 #include <kernel/unit.h>
+
+#include <move.h>
 
 /* util includes */
 #include <util/attrib.h>
@@ -919,7 +918,7 @@ void spawn_dragons(void)
       if (verbosity >= 2) {
         log_printf(stdout, "%d %s in %s.\n", u->number,
           LOC(default_locale,
-            rc_name(u_race(u), u->number != 1)), regionname(r, NULL));
+            rc_name(u_race(u), (u->number==1) ? NAME_SINGULAR:NAME_PLURAL)), regionname(r, NULL));
       }
 
       name_unit(u);
@@ -994,7 +993,7 @@ void spawn_undead(void)
       if (verbosity >= 2) {
         log_printf(stdout, "%d %s in %s.\n", u->number,
           LOC(default_locale,
-            rc_name(u_race(u), u->number != 1)), regionname(r, NULL));
+          rc_name(u_race(u), (u->number == 1) ? NAME_SINGULAR : NAME_PLURAL)), regionname(r, NULL));
       }
 
       {

@@ -101,24 +101,29 @@ static int res_changepeasants(unit * u, const resource_type * rtype, int delta)
     return u->region->land->peasants;
 }
 
+static int golem_factor(const unit *u, const resource_type *rtype) {
+    if (rtype == get_resourcetype(R_STONE) && (u_race(u)->flags & RCF_STONEGOLEM)) {
+        return GOLEM_STONE;
+    }
+    if (rtype == get_resourcetype(R_IRON) && (u_race(u)->flags & RCF_IRONGOLEM)) {
+        return GOLEM_IRON;
+    }
+    return 0;
+}
+
 static int res_changeitem(unit * u, const resource_type * rtype, int delta)
 {
     int num;
-    if (rtype == get_resourcetype(R_STONE) && u_race(u) == get_race(RC_STONEGOLEM)
-        && delta <= 0) {
-        int reduce = delta / GOLEM_STONE;
-        if (delta % GOLEM_STONE != 0)
-            --reduce;
-        scale_number(u, u->number + reduce);
-        num = u->number * GOLEM_STONE;
-    }
-    else if (rtype == get_resourcetype(R_IRON)
-        && u_race(u) == get_race(RC_IRONGOLEM) && delta <= 0) {
-        int reduce = delta / GOLEM_IRON;
-        if (delta % GOLEM_IRON != 0)
-            --reduce;
-        scale_number(u, u->number + reduce);
-        num = u->number * GOLEM_IRON;
+    int gf = (delta>0) ? 0 : golem_factor(u, rtype);
+    if (gf>0) {
+        if (delta != 0) {
+            int reduce = delta / gf;
+            if (delta % gf != 0) {
+                --reduce;
+            }
+            if (reduce) scale_number(u, u->number + reduce);
+        }
+        num = u->number * gf;
     }
     else {
         const item_type *itype = resource2item(rtype);
@@ -134,18 +139,25 @@ static int res_changeitem(unit * u, const resource_type * rtype, int delta)
 
 const char *resourcename(const resource_type * rtype, int flags)
 {
-    int i = 0;
-
+    if (!rtype)
+    assert(rtype);
     if (rtype) {
         if (rtype->name)
             return rtype->name(rtype, flags);
 
-        if (flags & NMF_PLURAL)
-            i = 1;
-        if (flags & NMF_APPEARANCE && rtype->itype && rtype->itype->_appearance[i]) {
-            return rtype->itype->_appearance[i];
+        if (flags & NMF_APPEARANCE && rtype->itype) {
+            int i = (flags & NMF_PLURAL) ? 1 : 0;
+            const char * result = rtype->itype->_appearance[i];
+            if (result) {
+                return result;
+            }
         }
-        return rtype->_name[i];
+        if (flags & NMF_PLURAL) {
+            static char name[64]; // FIXME: static return value
+            _snprintf(name, sizeof(name), "%s_p", rtype->_name);
+            return name;
+        }
+        return rtype->_name;
     }
     return "none";
 }
@@ -155,7 +167,7 @@ static int num_resources;
 static void rt_register(resource_type * rtype)
 {
     char buffer[64];
-    const char * name = rtype->_name[0];
+    const char * name = rtype->_name;
     size_t len = strlen(name);
 
     assert(len < sizeof(buffer) - sizeof(rtype));
@@ -168,9 +180,7 @@ resource_type *rt_get_or_create(const char *name) {
     resource_type *rtype = rt_find(name);
     if (!rtype) {
         rtype = (resource_type *)calloc(sizeof(resource_type), 1);
-        rtype->_name[0] = _strdup(name);
-        rtype->_name[1] = (char *)malloc(strlen(name) + 3);
-        sprintf(rtype->_name[1], "%s_p", name);
+        rtype->_name = _strdup(name);
         rt_register(rtype);
     }
     return rtype;
@@ -179,7 +189,7 @@ resource_type *rt_get_or_create(const char *name) {
 void it_register(item_type * itype)
 {
     char buffer[64];
-    const char * name = itype->rtype->_name[0];
+    const char * name = itype->rtype->_name;
     size_t len = strlen(name);
 
     assert(len < sizeof(buffer) - sizeof(itype));
@@ -220,7 +230,7 @@ item_type *it_find(const char *zname)
 item_type *it_get_or_create(resource_type *rtype) {
     item_type * itype;
     assert(rtype);
-    itype = it_find(rtype->_name[0]);
+    itype = it_find(rtype->_name);
     assert(!itype || !itype->rtype || itype->rtype == rtype);
     if (!itype) {
         itype = (item_type *)calloc(sizeof(item_type), 1);
@@ -404,7 +414,7 @@ item *i_add(item ** pi, item * i)
 {
     assert(i && i->type && !i->next);
     while (*pi) {
-        int d = strcmp((*pi)->type->rtype->_name[0], i->type->rtype->_name[0]);
+        int d = strcmp((*pi)->type->rtype->_name, i->type->rtype->_name);
         if (d >= 0)
             break;
         pi = &(*pi)->next;
@@ -427,7 +437,7 @@ void i_merge(item ** pi, item ** si)
     while (i) {
         item *itmp;
         while (*pi) {
-            int d = strcmp((*pi)->type->rtype->_name[0], i->type->rtype->_name[0]);
+            int d = strcmp((*pi)->type->rtype->_name, i->type->rtype->_name);
             if (d >= 0)
                 break;
             pi = &(*pi)->next;
@@ -451,7 +461,7 @@ item *i_change(item ** pi, const item_type * itype, int delta)
 {
     assert(itype);
     while (*pi) {
-        int d = strcmp((*pi)->type->rtype->_name[0], itype->rtype->_name[0]);
+        int d = strcmp((*pi)->type->rtype->_name, itype->rtype->_name);
         if (d >= 0)
             break;
         pi = &(*pi)->next;
@@ -828,7 +838,7 @@ static int
 use_bloodpotion(struct unit *u, const struct item_type *itype, int amount,
 struct order *ord)
 {
-    if (u_race(u) == get_race(RC_DAEMON)) {
+    if (u->number == 0 || u_race(u) == get_race(RC_DAEMON)) {
         change_effect(u, itype->rtype->ptype, 100 * amount);
     }
     else {
@@ -1039,7 +1049,7 @@ static int add_resourcename_cb(const void * match, const void * key, size_t keyl
     cb_get_kv(match, &rtype, sizeof(rtype));
     for (i = 0; i != 2; ++i) {
         char buffer[128];
-        const char * name = locale_string(lang, rtype->_name[i]);
+        const char * name = locale_string(lang, resourcename(rtype, (i==0) ? 0 : NMF_PLURAL));
 
         if (name && transliterate(buffer, sizeof(buffer), name)) {
             size_t len = strlen(buffer);
@@ -1090,7 +1100,7 @@ static int add_itemname_cb(const void * match, const void * key, size_t keylen, 
         int i;
         for (i = 0; i != 2; ++i) {
             char buffer[128];
-            const char * name = locale_string(lang, rtype->_name[i]);
+            const char * name = locale_string(lang, resourcename(rtype, (i == 0) ? 0 : NMF_PLURAL));
 
             if (name && transliterate(buffer, sizeof(buffer), name)) {
                 size_t len = strlen(buffer);
@@ -1152,7 +1162,7 @@ static item *default_spoil(const struct race *rc, int size)
         char spoilname[32];
         const item_type *itype;
 
-        sprintf(spoilname, "%sspoil", rc->_name[0]);
+        sprintf(spoilname, "%sspoil", rc->_name);
         itype = it_find(spoilname);
         if (itype != NULL) {
             i_add(&itm, i_new(itype, size));
@@ -1175,8 +1185,7 @@ int free_itype_cb(const void * match, const void * key, size_t keylen, void *cbd
 int free_rtype_cb(const void * match, const void * key, size_t keylen, void *cbdata) {
     resource_type *rtype;
     cb_get_kv(match, &rtype, sizeof(rtype));
-    free(rtype->_name[0]);
-    free(rtype->_name[1]);
+    free(rtype->_name);
     free(rtype);
     return 0;
 }
